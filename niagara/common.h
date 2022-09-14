@@ -1,0 +1,1 @@
+#define UINT32_MAX 4294967296
