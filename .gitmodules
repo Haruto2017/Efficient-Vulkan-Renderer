@@ -4,3 +4,9 @@
 [submodule "extern/glm"]
 	path = extern/glm
 	url = https://github.com/g-truc/glm.git
+[submodule "extern/common-3d-test-models"]
+	path = extern/common-3d-test-models
+	url = https://github.com/alecjacobson/common-3d-test-models.git
+[submodule "extern/meshoptimizer"]
+	path = extern/meshoptimizer
+	url = https://github.com/zeux/meshoptimizer.git

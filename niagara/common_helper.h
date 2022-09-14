@@ -1,23 +1,21 @@
-#ifndef COMMON_HELPER
-#define COMMON_HELPER
+#ifndef NIAGARA_COMMON_HELPER
+#define NIAGARA_COMMON_HELPER
 #include "niagara_prereq.h"
 
-VkImageMemoryBarrier imageBarrier(VkImage image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout)
+struct Buffer
 {
-	VkImageMemoryBarrier result = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
-	
-	result.srcAccessMask = srcAccessMask;
-	result.dstAccessMask = dstAccessMask;
-	result.oldLayout = oldLayout;
-	result.newLayout = newLayout;
-	result.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	result.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	result.image = image;
-	result.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	result.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
-	result.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+	VkBuffer buffer;
+	VkDeviceMemory memory;
+	void* data;
+	size_t size;
+};
 
-	return result;
-}
+uint32_t findMemoryType(const VkPhysicalDeviceMemoryProperties& memoryProperties, uint32_t typeFilter, VkMemoryPropertyFlags properties);
+
+void createBuffer(Buffer& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProperties, size_t size, VkBufferUsageFlags usage);
+
+void destroyBuffer(const Buffer& buffer, VkDevice device);
+
+VkImageMemoryBarrier imageBarrier(VkImage image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout);
 
 #endif
