@@ -61,17 +61,17 @@ void Mesh::loadMesh(std::string objpath)
                     tinyobj::real_t nx = attrib.normals[3 * size_t(idx.normal_index) + 0];
                     tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
                     tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
-                    vertices[(uint64_t)curr_tri * 3 + v].normal.x = vx;
-                    vertices[(uint64_t)curr_tri * 3 + v].normal.y = vy;
-                    vertices[(uint64_t)curr_tri * 3 + v].normal.z = vz;
+                    vertices[(uint64_t)curr_tri * 3 + v].normal.x = nx;
+                    vertices[(uint64_t)curr_tri * 3 + v].normal.y = ny;
+                    vertices[(uint64_t)curr_tri * 3 + v].normal.z = nz;
                 }
 
                 // Check if `texcoord_index` is zero or positive. negative = no texcoord data
                 if (idx.texcoord_index >= 0) {
                     tinyobj::real_t tx = attrib.texcoords[2 * size_t(idx.texcoord_index) + 0];
                     tinyobj::real_t ty = attrib.texcoords[2 * size_t(idx.texcoord_index) + 1];
-                    vertices[(uint64_t)curr_tri * 3 + v].texcoord.x = vx;
-                    vertices[(uint64_t)curr_tri * 3 + v].texcoord.y = vy;
+                    vertices[(uint64_t)curr_tri * 3 + v].texcoord.x = tx;
+                    vertices[(uint64_t)curr_tri * 3 + v].texcoord.y = ty;
                 }
 
                 // Optional: vertex colors
