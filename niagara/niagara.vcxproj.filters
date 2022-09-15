@@ -72,6 +72,9 @@
     <ClCompile Include="..\extern\meshoptimizer\src\vfetchoptimizer.cpp">
       <Filter>Source Files\MeshOptimizer</Filter>
     </ClCompile>
+    <ClCompile Include="..\extern\volk\volk.c">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="common_helper.h">

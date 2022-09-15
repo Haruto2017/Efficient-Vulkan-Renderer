@@ -12,7 +12,8 @@ const std::vector<const char*> validationLayers = {
 };
 
 const std::vector<const char*> deviceExtensions = {
-    VK_KHR_SWAPCHAIN_EXTENSION_NAME
+    VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+    VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
 };
 
 #ifdef NDEBUG
@@ -215,6 +216,11 @@ private:
     }
 
     void createInstance() {
+        if (volkInitialize() != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to initialize volk");
+        }
+
         if (enableValidationLayers && !checkValidationLayerSupport()) {
             throw std::runtime_error("validation layers requested, but not available!");
         }
@@ -252,6 +258,8 @@ private:
         if (vkCreateInstance(&createInfo, nullptr, &instance) != VK_SUCCESS) {
             throw std::runtime_error("failed to create instance!");
         }
+
+        volkLoadInstance(instance);
     }
 
     void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo) {
@@ -274,8 +282,13 @@ private:
     }
 
     void createSurface() {
-        if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create window surface!");
+        VkWin32SurfaceCreateInfoKHR createInfo = { VK_STRUCTURE_TYPE_WIN32_SURFACE_CREATE_INFO_KHR };
+        createInfo.hinstance = GetModuleHandle(0);
+        createInfo.hwnd = glfwGetWin32Window(window);
+
+        if (vkCreateWin32SurfaceKHR(instance, &createInfo, 0, &surface) != VK_SUCCESS)
+        {
+            throw std::runtime_error("can't create surface");
         }
     }
 
@@ -492,10 +505,10 @@ private:
 
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        vertexInputInfo.vertexBindingDescriptionCount = 1;
-        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+        //vertexInputInfo.vertexBindingDescriptionCount = 1;
+        //vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+        //vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+        //vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
 
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -546,14 +559,34 @@ private:
         dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
         dynamicState.pDynamicStates = dynamicStates.data();
 
+        VkDescriptorSetLayoutBinding setBindings[1] = {};
+        setBindings[0].binding = 0;
+        setBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        setBindings[0].descriptorCount = 1;
+        setBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+        VkDescriptorSetLayoutCreateInfo setCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+        setCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+        setCreateInfo.bindingCount = sizeof(setBindings)/sizeof(setBindings[0]);
+        setCreateInfo.pBindings = setBindings;
+
+        VkDescriptorSetLayout setLayout = 0;
+        if (vkCreateDescriptorSetLayout(device, &setCreateInfo, 0, &setLayout))
+        {
+            throw std::runtime_error("failed to create descriptor layout!");
+        }
+
         VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
         pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = 0;
+        pipelineLayoutInfo.setLayoutCount = 1;
+        pipelineLayoutInfo.pSetLayouts = &setLayout;
         pipelineLayoutInfo.pushConstantRangeCount = 0;
 
         if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
             throw std::runtime_error("failed to create pipeline layout!");
         }
+
+        vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
 
         VkGraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
@@ -652,9 +685,24 @@ private:
 
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-        VkBuffer vertexBuffers[] = { meshes[0].vb.buffer };
+        VkDescriptorBufferInfo bufferInfo = {};
+        bufferInfo.buffer = meshes[0].vb.buffer;
+        bufferInfo.offset = 0;
+        bufferInfo.range = meshes[0].vb.size;
+        
+        VkWriteDescriptorSet descriptors[1] = {};
+        descriptors[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptors[0].dstSet = VK_NULL_HANDLE;
+        descriptors[0].dstBinding = 0;
+        descriptors[0].descriptorCount = 1;
+        descriptors[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptors[0].pBufferInfo = &bufferInfo;
+
+        vkCmdPushDescriptorSetKHR(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);
+
+       // VkBuffer vertexBuffers[] = { meshes[0].vb.buffer };
         VkDeviceSize dummyOffset = 0;
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, &dummyOffset);
+        //vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, &dummyOffset);
         vkCmdBindIndexBuffer(commandBuffer, meshes[0].ib.buffer, dummyOffset, VK_INDEX_TYPE_UINT32);
 
         VkViewport viewport{};

@@ -1,10 +1,10 @@
 #ifndef NIAGARA_PREREQ
 #define NIAGARA_PREREQ
-#define GLFW_INCLUDE_VULKAN
 
 #include <GLFW/glfw3.h>
+#include <GLFW/glfw3native.h>
 #include <glm/glm.hpp>
-#include <vulkan/vulkan.h>
+#include "volk.h"
 
 #include <iostream>
 #include <fstream>
