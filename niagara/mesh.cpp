@@ -87,11 +87,17 @@ void Mesh::loadMesh(std::string objpath)
         }
     }
 
-    m_vertices = vertices;
+    //m_vertices = vertices;
+    //m_indices.resize(num_indices);
+    //std::iota(std::begin(m_indices), std::end(m_indices), 0);
+    std::vector<uint32_t> remap(num_indices);
+    size_t num_unique_vertices = meshopt_generateVertexRemap((unsigned int *)remap.data(), 0, num_indices, vertices.data(), num_indices, sizeof(Vertex));
+
+    m_vertices.resize(num_unique_vertices);
     m_indices.resize(num_indices);
-    std::iota(std::begin(m_indices), std::end(m_indices), 0);
-    //std::vector<uint32_t> remap(num_indices);
-    //size_t num_unique_vertices = MESHOPTIMIZER_API::meshopt_generateVertexRemap(remap.data(), 0, num_indices, vertices.data(), num_indices, vertices.size());
+
+    meshopt_remapVertexBuffer(m_vertices.data(), vertices.data(), num_indices, sizeof(Vertex), remap.data());
+    meshopt_remapIndexBuffer(m_indices.data(), 0, num_indices, remap.data());
 }
 
 void Mesh::generateRenderData(VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProperties)

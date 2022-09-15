@@ -13,6 +13,9 @@
       <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
       <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav;mfcribbon-ms</Extensions>
     </Filter>
+    <Filter Include="Source Files\MeshOptimizer">
+      <UniqueIdentifier>{ab752bfe-2862-438f-ad2c-a31a167e694d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="niagara.cpp">
@@ -23,6 +26,51 @@
     </ClCompile>
     <ClCompile Include="common_helper.cpp">
       <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\meshoptimizer\src\allocator.cpp">
+      <Filter>Source Files\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\meshoptimizer\src\clusterizer.cpp">
+      <Filter>Source Files\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\meshoptimizer\src\indexcodec.cpp">
+      <Filter>Source Files\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\meshoptimizer\src\indexgenerator.cpp">
+      <Filter>Source Files\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\meshoptimizer\src\overdrawanalyzer.cpp">
+      <Filter>Source Files\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\meshoptimizer\src\overdrawoptimizer.cpp">
+      <Filter>Source Files\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\meshoptimizer\src\simplifier.cpp">
+      <Filter>Source Files\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\meshoptimizer\src\spatialorder.cpp">
+      <Filter>Source Files\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\meshoptimizer\src\stripifier.cpp">
+      <Filter>Source Files\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\meshoptimizer\src\vcacheanalyzer.cpp">
+      <Filter>Source Files\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\meshoptimizer\src\vcacheoptimizer.cpp">
+      <Filter>Source Files\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\meshoptimizer\src\vertexcodec.cpp">
+      <Filter>Source Files\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\meshoptimizer\src\vertexfilter.cpp">
+      <Filter>Source Files\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\meshoptimizer\src\vfetchanalyzer.cpp">
+      <Filter>Source Files\MeshOptimizer</Filter>
+    </ClCompile>
+    <ClCompile Include="..\extern\meshoptimizer\src\vfetchoptimizer.cpp">
+      <Filter>Source Files\MeshOptimizer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -37,6 +85,9 @@
     </ClInclude>
     <ClInclude Include="niagara_prereq.h">
       <Filter>Source Files</Filter>
+    </ClInclude>
+    <ClInclude Include="..\extern\meshoptimizer\src\meshoptimizer.h">
+      <Filter>Source Files\MeshOptimizer</Filter>
     </ClInclude>
   </ItemGroup>
 </Project>

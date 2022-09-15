@@ -89,7 +89,7 @@
       <PreprocessorDefinitions>_DEBUG;_GLFW_WIN32;GLFW_EXPOSE_NATIVE_WIN32;VK_USE_PLATFORM_WIN32_KHR;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile />
-      <AdditionalIncludeDirectories>../extern/meshoptimizer/src;../extern/glm;$(VULKAN_SDK)\Include;../extern/glfw/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../extern/glm;$(VULKAN_SDK)\Include;../extern/glfw/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -108,7 +108,7 @@
       <PreprocessorDefinitions>GLFW_EXPOSE_NATIVE_WIN32;VK_USE_PLATFORM_WIN32_KHR;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile />
-      <AdditionalIncludeDirectories>../extern/meshoptimizer/src;../extern/glm;$(VULKAN_SDK)\Include;../extern/glfw/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../extern/glm;$(VULKAN_SDK)\Include;../extern/glfw/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -126,7 +126,7 @@
       <PreprocessorDefinitions>_DEBUG;_GLFW_WIN32;GLFW_EXPOSE_NATIVE_WIN32;VK_USE_PLATFORM_WIN32_KHR;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile />
-      <AdditionalIncludeDirectories>../extern/meshoptimizer/src;../extern/glm;$(VULKAN_SDK)\Include;../extern/glfw/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../extern/glm;$(VULKAN_SDK)\Include;../extern/glfw/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -145,7 +145,7 @@
       <PreprocessorDefinitions>GLFW_EXPOSE_NATIVE_WIN32;VK_USE_PLATFORM_WIN32_KHR;_GLFW_WIN32;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile />
-      <AdditionalIncludeDirectories>../extern/meshoptimizer/src;../extern/glm;$(VULKAN_SDK)\Include;../extern/glfw/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../extern/glm;$(VULKAN_SDK)\Include;../extern/glfw/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>Console</SubSystem>
@@ -157,11 +157,27 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="..\extern\meshoptimizer\src\allocator.cpp" />
+    <ClCompile Include="..\extern\meshoptimizer\src\clusterizer.cpp" />
+    <ClCompile Include="..\extern\meshoptimizer\src\indexcodec.cpp" />
+    <ClCompile Include="..\extern\meshoptimizer\src\indexgenerator.cpp" />
+    <ClCompile Include="..\extern\meshoptimizer\src\overdrawanalyzer.cpp" />
+    <ClCompile Include="..\extern\meshoptimizer\src\overdrawoptimizer.cpp" />
+    <ClCompile Include="..\extern\meshoptimizer\src\simplifier.cpp" />
+    <ClCompile Include="..\extern\meshoptimizer\src\spatialorder.cpp" />
+    <ClCompile Include="..\extern\meshoptimizer\src\stripifier.cpp" />
+    <ClCompile Include="..\extern\meshoptimizer\src\vcacheanalyzer.cpp" />
+    <ClCompile Include="..\extern\meshoptimizer\src\vcacheoptimizer.cpp" />
+    <ClCompile Include="..\extern\meshoptimizer\src\vertexcodec.cpp" />
+    <ClCompile Include="..\extern\meshoptimizer\src\vertexfilter.cpp" />
+    <ClCompile Include="..\extern\meshoptimizer\src\vfetchanalyzer.cpp" />
+    <ClCompile Include="..\extern\meshoptimizer\src\vfetchoptimizer.cpp" />
     <ClCompile Include="common_helper.cpp" />
     <ClCompile Include="mesh.cpp" />
     <ClCompile Include="niagara.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="..\extern\meshoptimizer\src\meshoptimizer.h" />
     <ClInclude Include="common_helper.h" />
     <ClInclude Include="mesh.h" />
     <ClInclude Include="niagara_prereq.h" />

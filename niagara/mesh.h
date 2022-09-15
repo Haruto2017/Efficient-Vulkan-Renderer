@@ -3,7 +3,7 @@
 
 #include "niagara_prereq.h"
 #include "tiny_obj_loader.h"
-#include "meshoptimizer.h"
+#include "MeshOptimizer/meshoptimizer.h"
 #include "common_helper.h"
 
 // a simple & generic vertex layout
