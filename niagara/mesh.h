@@ -10,7 +10,7 @@
 struct Vertex
 {
 	glm::vec3 pos;
-	glm::vec3 normal;
+	uint8_t nx, ny, nz, nw;
 	//glm::vec3 color;
 	glm::vec2 texcoord;
 
@@ -32,8 +32,8 @@ struct Vertex
 
 		attributeDescriptions[1].binding = 0;
 		attributeDescriptions[1].location = 1;
-		attributeDescriptions[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-		attributeDescriptions[1].offset = offsetof(Vertex, normal);
+		attributeDescriptions[1].format = VK_FORMAT_R8G8B8A8_UINT;
+		attributeDescriptions[1].offset = offsetof(Vertex, nx);
 
 		attributeDescriptions[2].binding = 0;
 		attributeDescriptions[2].location = 2;

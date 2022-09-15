@@ -14,6 +14,8 @@ const std::vector<const char*> validationLayers = {
 const std::vector<const char*> deviceExtensions = {
     VK_KHR_SWAPCHAIN_EXTENSION_NAME,
     VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
+    VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
+    VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
 };
 
 #ifdef NDEBUG
@@ -331,7 +333,29 @@ private:
             queueCreateInfos.push_back(queueCreateInfo);
         }
 
-        VkPhysicalDeviceFeatures deviceFeatures{};
+        VkPhysicalDeviceFeatures2 features = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2 };
+        features.features.multiDrawIndirect = true;
+        features.features.pipelineStatisticsQuery = true;
+        features.features.shaderInt16 = true;
+        features.features.shaderInt64 = true;
+
+        VkPhysicalDeviceVulkan11Features features11 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES };
+        features11.storageBuffer16BitAccess = true;
+        features11.shaderDrawParameters = true;
+
+        VkPhysicalDeviceVulkan12Features features12 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES };
+        features12.drawIndirectCount = true;
+        features12.storageBuffer8BitAccess = true;
+        features12.uniformAndStorageBuffer8BitAccess = true;
+        features12.shaderFloat16 = true;
+        features12.shaderInt8 = true;
+        features12.samplerFilterMinmax = true;
+        features12.scalarBlockLayout = true;
+
+        VkPhysicalDeviceVulkan13Features features13 = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES };
+        features13.dynamicRendering = true;
+        features13.synchronization2 = true;
+        features13.maintenance4 = true;
 
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -339,7 +363,12 @@ private:
         createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
         createInfo.pQueueCreateInfos = queueCreateInfos.data();
 
-        createInfo.pEnabledFeatures = &deviceFeatures;
+        //createInfo.pEnabledFeatures = &deviceFeatures;
+
+        createInfo.pNext = &features;
+        features.pNext = &features11;
+        features11.pNext = &features12;
+        features12.pNext = &features13;
 
         createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
         createInfo.ppEnabledExtensionNames = deviceExtensions.data();

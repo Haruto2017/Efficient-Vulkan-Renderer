@@ -61,9 +61,9 @@ void Mesh::loadMesh(std::string objpath)
                     tinyobj::real_t nx = attrib.normals[3 * size_t(idx.normal_index) + 0];
                     tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
                     tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
-                    vertices[(uint64_t)curr_tri * 3 + v].normal.x = nx;
-                    vertices[(uint64_t)curr_tri * 3 + v].normal.y = ny;
-                    vertices[(uint64_t)curr_tri * 3 + v].normal.z = nz;
+                    vertices[(uint64_t)curr_tri * 3 + v].nx = uint8_t(nx * 127.f + 127.f);
+                    vertices[(uint64_t)curr_tri * 3 + v].ny = uint8_t(ny * 127.f + 127.f);
+                    vertices[(uint64_t)curr_tri * 3 + v].nz = uint8_t(nz * 127.f + 127.f);
                 }
 
                 // Check if `texcoord_index` is zero or positive. negative = no texcoord data
