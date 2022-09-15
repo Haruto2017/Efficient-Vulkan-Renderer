@@ -44,6 +44,14 @@ struct Vertex
 	}
 };
 
+struct Meshlet
+{
+	uint32_t vertices[64];
+	uint8_t indices[126]; // up to 42 triangles
+	uint8_t indexCount; 
+	uint8_t vertexCount;
+};
+
 class Mesh
 {
 public:
@@ -53,9 +61,13 @@ public:
 
 	Buffer vb;
 	Buffer ib;
+	Buffer mb;
 
 	std::vector<Vertex> m_vertices;
 	std::vector<uint32_t> m_indices;
+	std::vector<Meshlet> m_meshlets;
+private:
+	void buildMeshlets();
 };
 
 #endif

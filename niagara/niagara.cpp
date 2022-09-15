@@ -16,6 +16,9 @@ const std::vector<const char*> deviceExtensions = {
     VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
     VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
     VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
+#ifdef RTX
+    VK_NV_MESH_SHADER_EXTENSION_NAME,
+#endif
 };
 
 #ifdef NDEBUG
@@ -357,6 +360,12 @@ private:
         features13.synchronization2 = true;
         features13.maintenance4 = true;
 
+#ifdef RTX
+        VkPhysicalDeviceMeshShaderFeaturesNV featuresMesh = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_NV };
+        featuresMesh.taskShader = true;
+        featuresMesh.meshShader = true;
+#endif
+
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
@@ -369,6 +378,10 @@ private:
         features.pNext = &features11;
         features11.pNext = &features12;
         features12.pNext = &features13;
+
+#ifdef RTX
+        features13.pNext = &featuresMesh;
+#endif
 
         createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
         createInfo.ppEnabledExtensionNames = deviceExtensions.data();
@@ -509,7 +522,11 @@ private:
     }
 
     void createGraphicsPipeline() {
+#ifdef RTX
+        auto vertShaderCode = readFile("..\\compiledShader\\meshlet.mesh.spv");
+#else
         auto vertShaderCode = readFile("..\\compiledShader\\simple_vert.spv");
+#endif
         auto fragShaderCode = readFile("..\\compiledShader\\simple_frag.spv");
 
         VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
@@ -517,7 +534,11 @@ private:
 
         VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
         vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+#ifdef RTX
+        vertShaderStageInfo.stage = VK_SHADER_STAGE_MESH_BIT_NV;
+#else
         vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
+#endif
         vertShaderStageInfo.module = vertShaderModule;
         vertShaderStageInfo.pName = "main";
 
@@ -588,11 +609,24 @@ private:
         dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
         dynamicState.pDynamicStates = dynamicStates.data();
 
+#ifdef RTX
+        VkDescriptorSetLayoutBinding setBindings[2] = {};
+        setBindings[0].binding = 0;
+        setBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        setBindings[0].descriptorCount = 1;
+        setBindings[0].stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
+
+        setBindings[1].binding = 1;
+        setBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        setBindings[1].descriptorCount = 1;
+        setBindings[1].stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
+#else
         VkDescriptorSetLayoutBinding setBindings[1] = {};
         setBindings[0].binding = 0;
         setBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
         setBindings[0].descriptorCount = 1;
         setBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+#endif
 
         VkDescriptorSetLayoutCreateInfo setCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
         setCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
@@ -714,26 +748,6 @@ private:
 
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-        VkDescriptorBufferInfo bufferInfo = {};
-        bufferInfo.buffer = meshes[0].vb.buffer;
-        bufferInfo.offset = 0;
-        bufferInfo.range = meshes[0].vb.size;
-        
-        VkWriteDescriptorSet descriptors[1] = {};
-        descriptors[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptors[0].dstSet = VK_NULL_HANDLE;
-        descriptors[0].dstBinding = 0;
-        descriptors[0].descriptorCount = 1;
-        descriptors[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptors[0].pBufferInfo = &bufferInfo;
-
-        vkCmdPushDescriptorSetKHR(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);
-
-       // VkBuffer vertexBuffers[] = { meshes[0].vb.buffer };
-        VkDeviceSize dummyOffset = 0;
-        //vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, &dummyOffset);
-        vkCmdBindIndexBuffer(commandBuffer, meshes[0].ib.buffer, dummyOffset, VK_INDEX_TYPE_UINT32);
-
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = (float)swapChainExtent.height;
@@ -748,7 +762,53 @@ private:
         scissor.extent = swapChainExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
+        VkDescriptorBufferInfo vbInfo = {};
+        vbInfo.buffer = meshes[0].vb.buffer;
+        vbInfo.offset = 0;
+        vbInfo.range = meshes[0].vb.size;
+
+#ifdef RTX
+        VkDescriptorBufferInfo mbInfo = {};
+        mbInfo.buffer = meshes[0].mb.buffer;
+        mbInfo.offset = 0;
+        mbInfo.range = meshes[0].mb.size;
+
+        VkWriteDescriptorSet descriptors[2] = {};
+        descriptors[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptors[0].dstSet = VK_NULL_HANDLE;
+        descriptors[0].dstBinding = 0;
+        descriptors[0].descriptorCount = 1;
+        descriptors[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptors[0].pBufferInfo = &vbInfo;
+
+        descriptors[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptors[1].dstSet = VK_NULL_HANDLE;
+        descriptors[1].dstBinding = 1;
+        descriptors[1].descriptorCount = 1;
+        descriptors[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptors[1].pBufferInfo = &mbInfo;
+
+        vkCmdPushDescriptorSetKHR(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);
+
+        vkCmdDrawMeshTasksNV(commandBuffer, uint32_t(meshes[0].m_meshlets.size()), 0);
+#else
+        VkWriteDescriptorSet descriptors[1] = {};
+        descriptors[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptors[0].dstSet = VK_NULL_HANDLE;
+        descriptors[0].dstBinding = 0;
+        descriptors[0].descriptorCount = 1;
+        descriptors[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        descriptors[0].pBufferInfo = &vbInfo;
+
+        vkCmdPushDescriptorSetKHR(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);
+
+        // VkBuffer vertexBuffers[] = { meshes[0].vb.buffer };
+        VkDeviceSize dummyOffset = 0;
+        //vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, &dummyOffset);
+        vkCmdBindIndexBuffer(commandBuffer, meshes[0].ib.buffer, dummyOffset, VK_INDEX_TYPE_UINT32);
+
         vkCmdDrawIndexed(commandBuffer, meshes[0].m_indices.size(), 1, 0, 0, 0);
+#endif
 
         vkCmdEndRenderPass(commandBuffer);
 

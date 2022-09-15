@@ -26,7 +26,7 @@ void main() {
     Vertex v = vb.vertices[gl_VertexIndex];
 
     vec3 inPosition = vec3(v.vx, v.vy, v.vz);
-    vec3 inNormal = vec3(v.nx, v.ny, v.nz) / 127.0 - 1.0;
+    vec3 inNormal = vec3(int(v.nx), int(v.ny), int(v.nz)) / 127.0 - 1.0;
     vec2 inTexCoord  = vec2(v.tu, v.tv);
 
     gl_Position = vec4(inPosition + vec3(0, 0, 0.5), 1.0);
