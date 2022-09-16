@@ -2,6 +2,7 @@
 #define NIAGARA_PREREQ
 
 #define RTX 1
+#define FVF 1
 #define QUERYCOUNT 128
 
 #include <GLFW/glfw3.h>

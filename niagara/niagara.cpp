@@ -552,9 +552,9 @@ private:
 #if RTX
         auto vertShaderCode = readFile("..\\compiledShader\\meshlet.mesh.spv");
 #else
-        auto vertShaderCode = readFile("..\\compiledShader\\simple_vert.spv");
+        auto vertShaderCode = readFile("..\\compiledShader\\simple.vert.spv");
 #endif
-        auto fragShaderCode = readFile("..\\compiledShader\\simple_frag.spv");
+        auto fragShaderCode = readFile("..\\compiledShader\\simple.frag.spv");
 
         VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
         VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
