@@ -52,9 +52,9 @@ void Mesh::loadMesh(std::string objpath)
                 tinyobj::real_t vx = attrib.vertices[3 * size_t(idx.vertex_index) + 0];
                 tinyobj::real_t vy = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
                 tinyobj::real_t vz = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
-                vertices[(uint64_t)curr_tri * 3 + v].pos.x = vx;
-                vertices[(uint64_t)curr_tri * 3 + v].pos.y = vy;
-                vertices[(uint64_t)curr_tri * 3 + v].pos.z = vz;
+                vertices[(uint64_t)curr_tri * 3 + v].px = meshopt_quantizeHalf(vx);
+                vertices[(uint64_t)curr_tri * 3 + v].py = meshopt_quantizeHalf(vy);
+                vertices[(uint64_t)curr_tri * 3 + v].pz = meshopt_quantizeHalf(vz);
 
                 // Check if `normal_index` is zero or positive. negative = no normal data
                 if (idx.normal_index >= 0) {
@@ -70,8 +70,8 @@ void Mesh::loadMesh(std::string objpath)
                 if (idx.texcoord_index >= 0) {
                     tinyobj::real_t tx = attrib.texcoords[2 * size_t(idx.texcoord_index) + 0];
                     tinyobj::real_t ty = attrib.texcoords[2 * size_t(idx.texcoord_index) + 1];
-                    vertices[(uint64_t)curr_tri * 3 + v].texcoord.x = tx;
-                    vertices[(uint64_t)curr_tri * 3 + v].texcoord.y = ty;
+                    vertices[(uint64_t)curr_tri * 3 + v].tu = meshopt_quantizeHalf(tx);
+                    vertices[(uint64_t)curr_tri * 3 + v].tv = meshopt_quantizeHalf(ty);
                 }
 
                 // Optional: vertex colors

@@ -92,6 +92,8 @@ private:
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
 
+    VkDescriptorSetLayout setLayout;
+
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
 
@@ -183,6 +185,7 @@ private:
 
         cleanupSwapChain();
 
+        vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
         vkDestroyPipeline(device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
 
@@ -667,7 +670,6 @@ private:
         setCreateInfo.pBindings = setBindings;
 #endif
 
-        VkDescriptorSetLayout setLayout = 0;
         if (vkCreateDescriptorSetLayout(device, &setCreateInfo, 0, &setLayout))
         {
             throw std::runtime_error("failed to create descriptor layout!");
@@ -682,8 +684,6 @@ private:
         if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
             throw std::runtime_error("failed to create pipeline layout!");
         }
-
-        vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
 
         VkGraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
