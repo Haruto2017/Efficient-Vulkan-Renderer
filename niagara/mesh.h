@@ -56,7 +56,7 @@ class Mesh
 {
 public:
 	void loadMesh(std::string objpath);
-	void generateRenderData(VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProperties);
+	void generateRenderData(VkDevice device, VkCommandBuffer commandBuffer, VkQueue queue, const VkPhysicalDeviceMemoryProperties& memoryProperties);
 	void destroyRenderData(VkDevice device);
 
 	Buffer vb;

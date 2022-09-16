@@ -10,7 +10,7 @@ uint32_t findMemoryType(const VkPhysicalDeviceMemoryProperties& memoryProperties
 	throw std::runtime_error("failed to find suitable memory type!");
 }
 
-void createBuffer(Buffer& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProperties, size_t size, VkBufferUsageFlags usage)
+void createBuffer(Buffer& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProperties, size_t size, VkBufferUsageFlags usage, VkMemoryPropertyFlags memoryFlags)
 {
 	VkBufferCreateInfo createInfo = { VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO };
 	createInfo.size = size;
@@ -30,7 +30,7 @@ void createBuffer(Buffer& result, VkDevice device, const VkPhysicalDeviceMemoryP
 	VkMemoryAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 	allocInfo.allocationSize = memRequirements.size;
-	allocInfo.memoryTypeIndex = findMemoryType(memoryProperties, memRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+	allocInfo.memoryTypeIndex = findMemoryType(memoryProperties, memRequirements.memoryTypeBits, memoryFlags);
 	if (vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate vertex buffer memory!");
 	}
@@ -38,12 +38,45 @@ void createBuffer(Buffer& result, VkDevice device, const VkPhysicalDeviceMemoryP
 	vkBindBufferMemory(device, buffer, bufferMemory, 0);
 
 	void* data = 0;
-	vkMapMemory(device, bufferMemory, 0, size, 0, &data);
+	if (memoryFlags & VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT)
+	{
+		vkMapMemory(device, bufferMemory, 0, size, 0, &data);
+	}
 
 	result.buffer = buffer;
 	result.memory = bufferMemory;
 	result.data = data;
 	result.size = size;
+}
+
+void uploadBuffer(VkDevice device, VkCommandBuffer commandBuffer, VkQueue queue, const Buffer& buffer, const Buffer& scratch, const void* data, size_t size)
+{
+	if ((scratch.data == nullptr) || (scratch.size < size))
+	{
+		throw std::runtime_error("scratch buffer is not sufficient");
+	}
+	memcpy(scratch.data, data, size);
+
+	vkResetCommandBuffer(commandBuffer, 0);
+
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+
+	vkBeginCommandBuffer(commandBuffer, &beginInfo);
+
+	VkBufferCopy region = { 0, 0, VkDeviceSize(size) };
+	vkCmdCopyBuffer(commandBuffer, scratch.buffer, buffer.buffer, 1, &region);
+
+	vkEndCommandBuffer(commandBuffer);
+
+	VkSubmitInfo submitInfo{};
+	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	submitInfo.commandBufferCount = 1;
+	submitInfo.pCommandBuffers = &commandBuffer;
+
+	vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
+	vkQueueWaitIdle(queue);
 }
 
 void destroyBuffer(const Buffer& buffer, VkDevice device)

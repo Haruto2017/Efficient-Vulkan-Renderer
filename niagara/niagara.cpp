@@ -235,7 +235,7 @@ private:
         VkPhysicalDeviceMemoryProperties memProperties;
         vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
 
-        meshes[0].generateRenderData(device, memProperties);
+        meshes[0].generateRenderData(device, commandBuffers[0], graphicsQueue, memProperties);
     }
 
     void createInstance() {
@@ -549,7 +549,9 @@ private:
     }
 
     void createGraphicsPipeline() {
-#if RTX
+#if FVF
+        auto vertShaderCode = readFile("..\\compiledShader\\meshfvf.vert.spv");
+#elif RTX
         auto vertShaderCode = readFile("..\\compiledShader\\meshlet.mesh.spv");
 #else
         auto vertShaderCode = readFile("..\\compiledShader\\simple.vert.spv");
@@ -582,10 +584,13 @@ private:
 
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-        //vertexInputInfo.vertexBindingDescriptionCount = 1;
-        //vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-        //vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-        //vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+
+#if FVF
+        vertexInputInfo.vertexBindingDescriptionCount = 1;
+        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
+        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
+        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
+#endif
 
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -657,8 +662,10 @@ private:
 
         VkDescriptorSetLayoutCreateInfo setCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
         setCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+#if !FVF
         setCreateInfo.bindingCount = sizeof(setBindings)/sizeof(setBindings[0]);
         setCreateInfo.pBindings = setBindings;
+#endif
 
         VkDescriptorSetLayout setLayout = 0;
         if (vkCreateDescriptorSetLayout(device, &setCreateInfo, 0, &setLayout))
@@ -792,12 +799,17 @@ private:
         scissor.extent = swapChainExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
+#if FVF
+        VkDeviceSize vbOffset = 0;
+        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &meshes[0].vb.buffer, &vbOffset);
+        vkCmdBindIndexBuffer(commandBuffer, meshes[0].ib.buffer, 0, VK_INDEX_TYPE_UINT32);
+        vkCmdDrawIndexed(commandBuffer, uint32_t(meshes[0].m_indices.size()), 1, 0, 0, 0);
+#elif RTX
         VkDescriptorBufferInfo vbInfo = {};
         vbInfo.buffer = meshes[0].vb.buffer;
         vbInfo.offset = 0;
         vbInfo.range = meshes[0].vb.size;
 
-#if RTX
         VkDescriptorBufferInfo mbInfo = {};
         mbInfo.buffer = meshes[0].mb.buffer;
         mbInfo.offset = 0;
@@ -822,6 +834,11 @@ private:
 
         vkCmdDrawMeshTasksNV(commandBuffer, uint32_t(meshes[0].m_meshlets.size()), 0);
 #else
+        VkDescriptorBufferInfo vbInfo = {};
+        vbInfo.buffer = meshes[0].vb.buffer;
+        vbInfo.offset = 0;
+        vbInfo.range = meshes[0].vb.size;
+
         VkWriteDescriptorSet descriptors[1] = {};
         descriptors[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         descriptors[0].dstSet = VK_NULL_HANDLE;
@@ -1167,6 +1184,11 @@ void unitTest()
 int main() {
     //unitTest();
     HelloTriangleApplication app;
+
+    if (FVF && RTX)
+    {
+        throw std::runtime_error("can't set FVF and RTX both to true");
+    }
 
     try {
         app.run();
