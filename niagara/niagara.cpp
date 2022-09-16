@@ -16,7 +16,7 @@ const std::vector<const char*> deviceExtensions = {
     VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
     VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
     VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
-#ifdef RTX
+#if RTX
     VK_NV_MESH_SHADER_EXTENSION_NAME,
 #endif
 };
@@ -104,6 +104,15 @@ private:
 
     std::vector<Mesh> meshes;
 
+    VkQueryPool queryPool;
+    uint64_t queryResults[2];
+    float timestampPeriod;
+    double frameGPUBegin;
+    double frameGPUEnd;
+
+    double frameCPUAvg;
+    double frameGPUAvg;
+
     void initWindow() {
         glfwInit();
 
@@ -134,12 +143,20 @@ private:
         createCommandBuffers();
         createSyncObjects();
         createMeshes();
+        createQueryPool();
     }
 
     void mainLoop() {
         while (!glfwWindowShouldClose(window)) {
+            double frameCPUBegin = glfwGetTime() * 1000;
             glfwPollEvents();
             drawFrame();
+            double frameCPUEnd = glfwGetTime() * 1000;
+            frameCPUAvg = frameCPUAvg * 0.95 + (frameCPUEnd - frameCPUBegin) * 0.05;
+            char title[256];
+            sprintf(title, "cpu: %.1f ms; gpu: %.3f ms; triangles %d; meshlets %d", 
+                frameCPUAvg, frameGPUAvg, meshes[0].m_indices.size() / 3, meshes[0].m_meshlets.size());
+            glfwSetWindowTitle(window, title);
         }
 
         vkDeviceWaitIdle(device);
@@ -158,6 +175,7 @@ private:
     }
 
     void cleanup() {
+        vkDestroyQueryPool(device, queryPool, nullptr);
         for (size_t i = 0; i < meshes.size(); ++i)
         {
             meshes[i].destroyRenderData(device);
@@ -315,6 +333,15 @@ private:
             }
         }
 
+        VkPhysicalDeviceProperties props = {};
+        vkGetPhysicalDeviceProperties(physicalDevice, &props);
+        if (props.limits.timestampComputeAndGraphics != VK_TRUE)
+        {
+            throw std::runtime_error("can't support gpu time stamp");
+        }
+        timestampPeriod = props.limits.timestampPeriod;
+
+
         if (physicalDevice == VK_NULL_HANDLE) {
             throw std::runtime_error("failed to find a suitable GPU!");
         }
@@ -360,7 +387,7 @@ private:
         features13.synchronization2 = true;
         features13.maintenance4 = true;
 
-#ifdef RTX
+#if RTX
         VkPhysicalDeviceMeshShaderFeaturesNV featuresMesh = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_NV };
         featuresMesh.taskShader = true;
         featuresMesh.meshShader = true;
@@ -379,7 +406,7 @@ private:
         features11.pNext = &features12;
         features12.pNext = &features13;
 
-#ifdef RTX
+#if RTX
         features13.pNext = &featuresMesh;
 #endif
 
@@ -522,7 +549,7 @@ private:
     }
 
     void createGraphicsPipeline() {
-#ifdef RTX
+#if RTX
         auto vertShaderCode = readFile("..\\compiledShader\\meshlet.mesh.spv");
 #else
         auto vertShaderCode = readFile("..\\compiledShader\\simple_vert.spv");
@@ -534,7 +561,7 @@ private:
 
         VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
         vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-#ifdef RTX
+#if RTX
         vertShaderStageInfo.stage = VK_SHADER_STAGE_MESH_BIT_NV;
 #else
         vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
@@ -609,7 +636,7 @@ private:
         dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
         dynamicState.pDynamicStates = dynamicStates.data();
 
-#ifdef RTX
+#if RTX
         VkDescriptorSetLayoutBinding setBindings[2] = {};
         setBindings[0].binding = 0;
         setBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
@@ -733,6 +760,9 @@ private:
             throw std::runtime_error("failed to begin recording command buffer!");
         }
 
+        vkCmdResetQueryPool(commandBuffer, queryPool, 0, QUERYCOUNT);
+        vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPool, 0);
+
         VkRenderPassBeginInfo renderPassInfo{};
         renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
         renderPassInfo.renderPass = renderPass;
@@ -767,7 +797,7 @@ private:
         vbInfo.offset = 0;
         vbInfo.range = meshes[0].vb.size;
 
-#ifdef RTX
+#if RTX
         VkDescriptorBufferInfo mbInfo = {};
         mbInfo.buffer = meshes[0].mb.buffer;
         mbInfo.offset = 0;
@@ -812,6 +842,8 @@ private:
 
         vkCmdEndRenderPass(commandBuffer);
 
+        vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPool, 1);
+
         if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
             throw std::runtime_error("failed to record command buffer!");
         }
@@ -835,6 +867,18 @@ private:
                 vkCreateFence(device, &fenceInfo, nullptr, &inFlightFences[i]) != VK_SUCCESS) {
                 throw std::runtime_error("failed to create synchronization objects for a frame!");
             }
+        }
+    }
+
+    void createQueryPool()
+    {
+        VkQueryPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
+        createInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
+        createInfo.queryCount = QUERYCOUNT;
+
+        if (vkCreateQueryPool(device, &createInfo, 0, &queryPool) != VK_SUCCESS)
+        {
+            throw std::runtime_error("failed to create query pool");
         }
     }
 
@@ -900,6 +944,14 @@ private:
         }
 
         currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+
+        if (vkGetQueryPoolResults(device, queryPool, 0,
+            sizeof(queryResults) / sizeof(queryResults[0]), sizeof(queryResults), queryResults, sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT) != VK_NOT_READY)
+        {
+            frameGPUBegin = double(queryResults[0]) * timestampPeriod * 1e-6;
+            frameGPUEnd = double(queryResults[1]) * timestampPeriod * 1e-6;
+            frameGPUAvg = frameGPUAvg * 0.95 + (frameGPUEnd - frameGPUBegin) * 0.05;
+        }
     }
 
     VkShaderModule createShaderModule(const std::vector<char>& code) {

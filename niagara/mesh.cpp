@@ -174,7 +174,7 @@ void Mesh::generateRenderData(VkDevice device, const VkPhysicalDeviceMemoryPrope
     }
     createBuffer(vb, device, memoryProperties, sizeof(m_vertices[0]) * m_vertices.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
     createBuffer(ib, device, memoryProperties, sizeof(m_indices[0]) * m_indices.size(), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-#ifdef RTX
+#if RTX
     buildMeshlets();
     createBuffer(mb, device, memoryProperties, sizeof(m_meshlets[0]) * m_meshlets.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT);
     memcpy(mb.data, m_meshlets.data(), sizeof(m_meshlets[0]) * m_meshlets.size());
