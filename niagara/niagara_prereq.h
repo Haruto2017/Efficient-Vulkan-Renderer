@@ -1,7 +1,7 @@
 #ifndef NIAGARA_PREREQ
 #define NIAGARA_PREREQ
 
-#define RTX 0
+#define RTX 1
 #define FVF 0
 #define QUERYCOUNT 128
 

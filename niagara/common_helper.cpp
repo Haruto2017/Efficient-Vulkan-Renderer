@@ -68,6 +68,10 @@ void uploadBuffer(VkDevice device, VkCommandBuffer commandBuffer, VkQueue queue,
 	VkBufferCopy region = { 0, 0, VkDeviceSize(size) };
 	vkCmdCopyBuffer(commandBuffer, scratch.buffer, buffer.buffer, 1, &region);
 
+	VkBufferMemoryBarrier copyBarrier = bufferBarrier(buffer.buffer, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT);
+
+	vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 1, &copyBarrier, 0, 0);
+
 	vkEndCommandBuffer(commandBuffer);
 
 	VkSubmitInfo submitInfo{};
@@ -99,6 +103,20 @@ VkImageMemoryBarrier imageBarrier(VkImage image, VkAccessFlags srcAccessMask, Vk
 	result.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 	result.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
 	result.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
+
+	return result;
+}
+
+VkBufferMemoryBarrier bufferBarrier(VkBuffer buffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask)
+{
+	VkBufferMemoryBarrier result = { VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER };
+	result.srcAccessMask = srcAccessMask;
+	result.dstAccessMask = dstAccessMask;
+	result.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	result.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	result.buffer = buffer;
+	result.offset = 0;
+	result.size = VK_WHOLE_SIZE;
 
 	return result;
 }

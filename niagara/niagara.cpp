@@ -799,11 +799,14 @@ private:
         scissor.extent = swapChainExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
+        int drawCount = 10;
+
 #if FVF
         VkDeviceSize vbOffset = 0;
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, &meshes[0].vb.buffer, &vbOffset);
         vkCmdBindIndexBuffer(commandBuffer, meshes[0].ib.buffer, 0, VK_INDEX_TYPE_UINT32);
-        vkCmdDrawIndexed(commandBuffer, uint32_t(meshes[0].m_indices.size()), 1, 0, 0, 0);
+        for (int i = 0; i < drawCount; ++ i)
+            vkCmdDrawIndexed(commandBuffer, uint32_t(meshes[0].m_indices.size()), 1, 0, 0, 0);
 #elif RTX
         VkDescriptorBufferInfo vbInfo = {};
         vbInfo.buffer = meshes[0].vb.buffer;
@@ -831,8 +834,8 @@ private:
         descriptors[1].pBufferInfo = &mbInfo;
 
         vkCmdPushDescriptorSetKHR(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);
-
-        vkCmdDrawMeshTasksNV(commandBuffer, uint32_t(meshes[0].m_meshlets.size()), 0);
+        for (int i = 0; i < drawCount; ++i)
+            vkCmdDrawMeshTasksNV(commandBuffer, uint32_t(meshes[0].m_meshlets.size()), 0);
 #else
         VkDescriptorBufferInfo vbInfo = {};
         vbInfo.buffer = meshes[0].vb.buffer;
@@ -853,8 +856,8 @@ private:
         VkDeviceSize dummyOffset = 0;
         //vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, &dummyOffset);
         vkCmdBindIndexBuffer(commandBuffer, meshes[0].ib.buffer, dummyOffset, VK_INDEX_TYPE_UINT32);
-
-        vkCmdDrawIndexed(commandBuffer, meshes[0].m_indices.size(), 1, 0, 0, 0);
+        for (int i = 0; i < drawCount; ++i)
+            vkCmdDrawIndexed(commandBuffer, meshes[0].m_indices.size(), 1, 0, 0, 0);
 #endif
 
         vkCmdEndRenderPass(commandBuffer);
