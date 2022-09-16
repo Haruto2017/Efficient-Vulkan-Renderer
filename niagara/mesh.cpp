@@ -133,6 +133,9 @@ void Mesh::buildMeshlets()
             m_meshlets.push_back(meshlet);
             meshlet = {};
             curr.clear();
+            av = 0xff;
+            bv = 0xff;
+            cv = 0xff;
         }
 
         if (av == 0xff)
