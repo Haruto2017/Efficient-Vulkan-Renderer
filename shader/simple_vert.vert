@@ -14,7 +14,7 @@ struct Vertex
 layout(binding = 0) buffer readonly Vertices
 {
     Vertex vertices[];
-} vb;
+};
 
 // layout(location = 0) in vec3 inPosition;
 // layout(location = 1) in vec3 inNormal;
@@ -23,7 +23,7 @@ layout(binding = 0) buffer readonly Vertices
 layout(location = 0) out vec3 fragColor;
 
 void main() {
-    Vertex v = vb.vertices[gl_VertexIndex];
+    Vertex v = vertices[gl_VertexIndex];
 
     vec3 inPosition = vec3(v.vx, v.vy, v.vz);
     vec3 inNormal = vec3(int(v.nx), int(v.ny), int(v.nz)) / 127.0 - 1.0;

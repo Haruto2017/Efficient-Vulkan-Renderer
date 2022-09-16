@@ -47,7 +47,7 @@ void main() {
         vec2 inTexCoord  = vec2(v.tu, v.tv);
 
         gl_MeshVerticesNV[i].gl_Position = vec4(inPosition + vec3(0, 0, 0.5), 1.0);
-        fragColor[i] = inNormal * 0.5 + 0.5;
+        fragColor[i] = normalize(inNormal) * 0.5 + 0.5;
     }
 
     gl_PrimitiveCountNV = uint(meshlets[mi].indexCount) / 3;

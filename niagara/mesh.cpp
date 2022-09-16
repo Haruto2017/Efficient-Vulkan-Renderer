@@ -128,14 +128,7 @@ void Mesh::buildMeshlets()
             cv = curr[c];
         }
 
-        if (meshlet.vertexCount + (av == 0xff) + (bv == 0xff) + (cv == 0xff))
-        {
-            m_meshlets.push_back(meshlet);
-            meshlet = {};
-            curr.clear();
-        }
-
-        if (meshlet.indexCount + 3 > 126)
+        if (meshlet.vertexCount + (av == 0xff) + (bv == 0xff) + (cv == 0xff) > 64 || meshlet.indexCount + 3 > 126)
         {
             m_meshlets.push_back(meshlet);
             meshlet = {};
