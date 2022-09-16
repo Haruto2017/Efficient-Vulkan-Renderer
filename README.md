@@ -6,3 +6,12 @@
 * Implementing an optimized version of object culling done on the GPU
 
 * Serves as an experimental ground for any interesting rendering algorithm
+
+
+# Implemented Features
+
+* Mesh rendering with mesh shader. 
+
+    * Using unordered_map for meshlet generation. 
+
+![Mesh_Shader_Correct](images/Mesh_Shader_Correct.png)
