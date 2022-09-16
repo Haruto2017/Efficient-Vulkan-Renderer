@@ -799,7 +799,7 @@ private:
         scissor.extent = swapChainExtent;
         vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-        int drawCount = 10;
+        int drawCount = 1;
 
 #if FVF
         VkDeviceSize vbOffset = 0;

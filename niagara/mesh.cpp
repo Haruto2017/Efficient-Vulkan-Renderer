@@ -98,6 +98,9 @@ void Mesh::loadMesh(std::string objpath)
 
     meshopt_remapVertexBuffer(m_vertices.data(), vertices.data(), num_indices, sizeof(Vertex), remap.data());
     meshopt_remapIndexBuffer(m_indices.data(), 0, num_indices, remap.data());
+
+    meshopt_optimizeVertexCache(m_indices.data(), m_indices.data(), num_indices, num_unique_vertices);
+    meshopt_optimizeVertexFetch(m_vertices.data(), m_indices.data(), num_indices, m_vertices.data(), num_unique_vertices, sizeof(Vertex));
 }
 
 void Mesh::buildMeshlets()
@@ -128,7 +131,7 @@ void Mesh::buildMeshlets()
             cv = curr[c];
         }
 
-        if (meshlet.vertexCount + (av == 0xff) + (bv == 0xff) + (cv == 0xff) > 64 || meshlet.indexCount + 3 > 126)
+        if (meshlet.vertexCount + (av == 0xff) + (bv == 0xff) + (cv == 0xff) > 64 || meshlet.triangleCount >= MESHLETTRICOUNT)
         {
             m_meshlets.push_back(meshlet);
             meshlet = {};
@@ -156,11 +159,12 @@ void Mesh::buildMeshlets()
             meshlet.vertices[meshlet.vertexCount++] = c;
         }
 
-        meshlet.indices[meshlet.indexCount++] = curr[a];
-        meshlet.indices[meshlet.indexCount++] = curr[b];
-        meshlet.indices[meshlet.indexCount++] = curr[c];
+        meshlet.indices[meshlet.triangleCount * 3 + 0] = curr[a];
+        meshlet.indices[meshlet.triangleCount * 3 + 1] = curr[b];
+        meshlet.indices[meshlet.triangleCount * 3 + 2] = curr[c];
+        meshlet.triangleCount++;
     }
-    if (meshlet.indexCount)
+    if (meshlet.triangleCount)
     {
         m_meshlets.push_back(meshlet);
     }

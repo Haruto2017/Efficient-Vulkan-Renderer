@@ -9,7 +9,7 @@
 // a simple & generic vertex layout
 struct Vertex
 {
-	uint16_t px, py, pz;
+	uint16_t px, py, pz, pw;
 	uint8_t nx, ny, nz, nw;
 	//glm::vec3 color;
 	uint16_t tu, tv;
@@ -27,7 +27,7 @@ struct Vertex
 		std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
 		attributeDescriptions[0].binding = 0;
 		attributeDescriptions[0].location = 0;
-		attributeDescriptions[0].format = VK_FORMAT_R16G16B16_SFLOAT;
+		attributeDescriptions[0].format = VK_FORMAT_R16G16B16A16_SFLOAT;
 		attributeDescriptions[0].offset = offsetof(Vertex, px);
 
 		attributeDescriptions[1].binding = 0;
@@ -47,8 +47,8 @@ struct Vertex
 struct Meshlet
 {
 	uint32_t vertices[64];
-	uint8_t indices[126]; // up to 42 triangles
-	uint8_t indexCount; 
+	uint8_t indices[MESHLETTRICOUNT * 3]; // up to 126 triangles
+	uint8_t triangleCount; 
 	uint8_t vertexCount;
 };
 

@@ -4,6 +4,7 @@
 #define RTX 1
 #define FVF 0
 #define QUERYCOUNT 128
+#define MESHLETTRICOUNT 84
 
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>
