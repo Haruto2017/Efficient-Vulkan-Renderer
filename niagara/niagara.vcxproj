@@ -176,6 +176,11 @@
     <ClCompile Include="..\extern\meshoptimizer\src\vfetchoptimizer.cpp" />
     <ClCompile Include="..\extern\volk\volk.c" />
     <ClCompile Include="app.cpp" />
+    <ClCompile Include="app_device.cpp" />
+    <ClCompile Include="app_frame.cpp" />
+    <ClCompile Include="app_shaders.cpp" />
+    <ClCompile Include="app_present.cpp" />
+    <ClCompile Include="app_validation.cpp" />
     <ClCompile Include="common_helper.cpp" />
     <ClCompile Include="mesh.cpp" />
     <ClCompile Include="niagara.cpp" />

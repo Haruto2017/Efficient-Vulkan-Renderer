@@ -1,13 +1,6 @@
 #include "app.h"
 
-void unitTest()
-{
-    Mesh testMesh;
-    testMesh.loadMesh("..\\extern\\common-3d-test-models\\data\\stanford-bunny.obj");
-}
-
 int main() {
-    //unitTest();
     renderApplication app;
 
     try {

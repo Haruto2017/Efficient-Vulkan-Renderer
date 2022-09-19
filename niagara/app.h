@@ -97,6 +97,7 @@ private:
     double frameGPUAvg;
 
     bool rtxSupported = false;
+    bool rtxEnabled = false;
 
     void initWindow();
 
