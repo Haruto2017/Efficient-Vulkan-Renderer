@@ -175,12 +175,14 @@
     <ClCompile Include="..\extern\meshoptimizer\src\vfetchanalyzer.cpp" />
     <ClCompile Include="..\extern\meshoptimizer\src\vfetchoptimizer.cpp" />
     <ClCompile Include="..\extern\volk\volk.c" />
+    <ClCompile Include="app.cpp" />
     <ClCompile Include="common_helper.cpp" />
     <ClCompile Include="mesh.cpp" />
     <ClCompile Include="niagara.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="..\extern\meshoptimizer\src\meshoptimizer.h" />
+    <ClInclude Include="app.h" />
     <ClInclude Include="common_helper.h" />
     <ClInclude Include="mesh.h" />
     <ClInclude Include="niagara_prereq.h" />
