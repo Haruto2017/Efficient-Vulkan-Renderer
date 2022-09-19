@@ -6,7 +6,7 @@
 
 #extension GL_GOOGLE_include_directive: require
 
-#include "mesh.h"
+#include "mesh_struct.h"
 
 layout(binding = 0) buffer readonly Vertices
 {

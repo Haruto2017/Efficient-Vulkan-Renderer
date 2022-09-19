@@ -9,7 +9,7 @@
 
 #extension GL_GOOGLE_include_directive: require
 
-#include "mesh.h"
+#include "mesh_struct.h"
 
 layout(local_size_x = 32, local_size_y = 1, local_size_x = 1) in;
 layout(triangles, max_vertices = 64, max_primitives = MESHLETTRICOUNT) out;
