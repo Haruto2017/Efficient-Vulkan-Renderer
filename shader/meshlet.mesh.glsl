@@ -1,6 +1,5 @@
 #version 460
 
-#define MESHLETTRICOUNT 84
 #define DEBUG 1
 
 #extension GL_EXT_shader_16bit_storage: require
@@ -8,28 +7,16 @@
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 #extension GL_NV_mesh_shader: require
 
+#extension GL_GOOGLE_include_directive: require
+
+#include "mesh.h"
+
 layout(local_size_x = 32, local_size_y = 1, local_size_x = 1) in;
 layout(triangles, max_vertices = 64, max_primitives = MESHLETTRICOUNT) out;
-
-struct Vertex
-{
-    float16_t vx, vy, vz, vw;
-    uint8_t nx, ny, nz, nw;
-    float16_t tu, tv;
-};
 
 layout(binding = 0) buffer readonly Vertices
 {
     Vertex vertices[];
-};
-
-struct Meshlet
-{
-	uint vertices[64];
-	uint8_t indices[MESHLETTRICOUNT*3]; // up to 126 triangles
-    //uint indicesPacked[MESHLETTRICOUNT*3 / 4];
-	uint8_t triangleCount; 
-	uint8_t vertexCount;
 };
 
 layout(binding = 1) buffer readonly Meshlets
