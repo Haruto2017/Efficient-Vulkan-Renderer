@@ -10,8 +10,6 @@
 
 # Implemented Features
 
-* Mesh rendering with mesh shader. 
-
-    * Using unordered_map for meshlet generation. 
+* Mesh rendering with meshlet generation & optimization and mesh shader. 
 
 ![Mesh_Shader_Correct](images/Mesh_Shader_Correct.png)

@@ -552,9 +552,7 @@ private:
     }
 
     void createGraphicsPipeline() {
-#if FVF
-        auto vertShaderCode = readFile("..\\compiledShader\\meshfvf.vert.spv");
-#elif RTX
+#if RTX
         auto vertShaderCode = readFile("..\\compiledShader\\meshlet.mesh.spv");
 #else
         auto vertShaderCode = readFile("..\\compiledShader\\simple.vert.spv");
@@ -587,13 +585,6 @@ private:
 
         VkPipelineVertexInputStateCreateInfo vertexInputInfo{};
         vertexInputInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
-
-#if FVF
-        vertexInputInfo.vertexBindingDescriptionCount = 1;
-        vertexInputInfo.vertexAttributeDescriptionCount = static_cast<uint32_t>(attributeDescriptions.size());
-        vertexInputInfo.pVertexBindingDescriptions = &bindingDescription;
-        vertexInputInfo.pVertexAttributeDescriptions = attributeDescriptions.data();
-#endif
 
         VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
         inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -665,10 +656,10 @@ private:
 
         VkDescriptorSetLayoutCreateInfo setCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
         setCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
-#if !FVF
+
         setCreateInfo.bindingCount = sizeof(setBindings)/sizeof(setBindings[0]);
         setCreateInfo.pBindings = setBindings;
-#endif
+
 
         if (vkCreateDescriptorSetLayout(device, &setCreateInfo, 0, &setLayout))
         {
@@ -801,13 +792,7 @@ private:
 
         int drawCount = 1;
 
-#if FVF
-        VkDeviceSize vbOffset = 0;
-        vkCmdBindVertexBuffers(commandBuffer, 0, 1, &meshes[0].vb.buffer, &vbOffset);
-        vkCmdBindIndexBuffer(commandBuffer, meshes[0].ib.buffer, 0, VK_INDEX_TYPE_UINT32);
-        for (int i = 0; i < drawCount; ++ i)
-            vkCmdDrawIndexed(commandBuffer, uint32_t(meshes[0].m_indices.size()), 1, 0, 0, 0);
-#elif RTX
+#if RTX
         VkDescriptorBufferInfo vbInfo = {};
         vbInfo.buffer = meshes[0].vb.buffer;
         vbInfo.offset = 0;
@@ -1187,11 +1172,6 @@ void unitTest()
 int main() {
     //unitTest();
     HelloTriangleApplication app;
-
-    if (FVF && RTX)
-    {
-        throw std::runtime_error("can't set FVF and RTX both to true");
-    }
 
     try {
         app.run();
