@@ -41,36 +41,13 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
 
     int drawCount = 1;
 
-    if (rtxEnabled)
+    if (rtxEnabled && rtxSupported)
     {
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxGraphicsPipeline);
 
-        VkDescriptorBufferInfo vbInfo = {};
-        vbInfo.buffer = meshes[0].vb.buffer;
-        vbInfo.offset = 0;
-        vbInfo.range = meshes[0].vb.size;
+        DescriptorInfo descriptors[] = {meshes[0].vb.buffer, meshes[0].mb.buffer};
 
-        VkDescriptorBufferInfo mbInfo = {};
-        mbInfo.buffer = meshes[0].mb.buffer;
-        mbInfo.offset = 0;
-        mbInfo.range = meshes[0].mb.size;
-
-        VkWriteDescriptorSet descriptors[2] = {};
-        descriptors[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptors[0].dstSet = VK_NULL_HANDLE;
-        descriptors[0].dstBinding = 0;
-        descriptors[0].descriptorCount = 1;
-        descriptors[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptors[0].pBufferInfo = &vbInfo;
-
-        descriptors[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptors[1].dstSet = VK_NULL_HANDLE;
-        descriptors[1].dstBinding = 1;
-        descriptors[1].descriptorCount = 1;
-        descriptors[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptors[1].pBufferInfo = &mbInfo;
-
-        vkCmdPushDescriptorSetKHR(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxPipelineLayout, 0, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);
+        vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, rtxUpdateTemplate, rtxPipelineLayout, 0, descriptors);
         for (int i = 0; i < drawCount; ++i)
             vkCmdDrawMeshTasksNV(commandBuffer, uint32_t(meshes[0].m_meshlets.size()), 0);
     }
@@ -78,20 +55,9 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     {
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-        VkDescriptorBufferInfo vbInfo = {};
-        vbInfo.buffer = meshes[0].vb.buffer;
-        vbInfo.offset = 0;
-        vbInfo.range = meshes[0].vb.size;
+        DescriptorInfo descriptors[] = { meshes[0].vb.buffer };
 
-        VkWriteDescriptorSet descriptors[1] = {};
-        descriptors[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptors[0].dstSet = VK_NULL_HANDLE;
-        descriptors[0].dstBinding = 0;
-        descriptors[0].descriptorCount = 1;
-        descriptors[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptors[0].pBufferInfo = &vbInfo;
-
-        vkCmdPushDescriptorSetKHR(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);
+        vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, updateTemplate, pipelineLayout, 0, descriptors);
 
         // VkBuffer vertexBuffers[] = { meshes[0].vb.buffer };
         VkDeviceSize dummyOffset = 0;

@@ -42,6 +42,36 @@ struct SwapChainSupportDetails {
     std::vector<VkPresentModeKHR> presentModes;
 };
 
+struct DescriptorInfo
+{
+    union
+    {
+        VkDescriptorImageInfo image;
+        VkDescriptorBufferInfo buffer;
+    };
+
+    DescriptorInfo(VkSampler sampler, VkImageView imageView, VkImageLayout imageLayout)
+    {
+        image.sampler = sampler;
+        image.imageView = imageView;
+        image.imageLayout = imageLayout;
+    }
+
+    DescriptorInfo(VkBuffer _buffer, VkDeviceSize offset, VkDeviceSize range)
+    {
+        buffer.buffer = _buffer;
+        buffer.offset = offset;
+        buffer.range = range;
+    }
+
+    DescriptorInfo(VkBuffer _buffer)
+    {
+        buffer.buffer = _buffer;
+        buffer.offset = 0;
+        buffer.range = VK_WHOLE_SIZE;
+    }
+};
+
 class renderApplication {
 public:
     void run();
@@ -67,13 +97,16 @@ private:
     std::vector<VkFramebuffer> swapChainFramebuffers;
 
     VkRenderPass renderPass;
+
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
     VkDescriptorSetLayout setLayout;
+    VkDescriptorUpdateTemplate updateTemplate;
 
     VkPipelineLayout rtxPipelineLayout;
     VkPipeline rtxGraphicsPipeline;
     VkDescriptorSetLayout rtxSetLayout;
+    VkDescriptorUpdateTemplate rtxUpdateTemplate;
 
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
@@ -133,11 +166,15 @@ private:
 
     void createRenderPass();
 
-    void createGenericGraphicsPipelineLayout(VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout& inSetLayout, bool rtxEnabled);
+    void createGenericGraphicsPipelineLayout(VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout, bool rtxEnabled);
 
     void createGenericGraphicsPipeline(VkShaderModule vs, VkShaderModule fs, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline, bool rtxEnabled);
 
     void createGraphicsPipeline();
+
+    void createSetLayout(VkDescriptorSetLayout& outLayout, bool rtxEnabled);
+
+    void createUpdateTemplate(VkDescriptorUpdateTemplate& outTemplate, VkPipelineBindPoint bindPoint, VkPipelineLayout inLayout, VkDescriptorSetLayout inSetLayout, bool rtxEnabled);
 
     void createFramebuffers();
 

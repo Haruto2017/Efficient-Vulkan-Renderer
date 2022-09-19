@@ -32,44 +32,8 @@ std::vector<char> renderApplication::readFile(const std::string& filename) {
     return buffer;
 }
 
-void renderApplication::createGenericGraphicsPipelineLayout(VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout& inSetLayout, bool rtxEnabled)
+void renderApplication::createGenericGraphicsPipelineLayout(VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout, bool rtxEnabled)
 {
-    std::vector<VkDescriptorSetLayoutBinding> setBindings;
-
-    if (rtxEnabled)
-    {
-        setBindings.resize(2);
-        setBindings[0].binding = 0;
-        setBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        setBindings[0].descriptorCount = 1;
-        setBindings[0].stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
-
-        setBindings[1].binding = 1;
-        setBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        setBindings[1].descriptorCount = 1;
-        setBindings[1].stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
-    }
-    else
-    {
-        setBindings.resize(1);
-        setBindings[0].binding = 0;
-        setBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        setBindings[0].descriptorCount = 1;
-        setBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-    }
-
-    VkDescriptorSetLayoutCreateInfo setCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-    setCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
-
-    setCreateInfo.bindingCount = setBindings.size();
-    setCreateInfo.pBindings = setBindings.data();
-
-
-    if (vkCreateDescriptorSetLayout(device, &setCreateInfo, 0, &inSetLayout))
-    {
-        throw std::runtime_error("failed to create descriptor layout!");
-    }
-
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1;
@@ -193,10 +157,14 @@ void renderApplication::createGraphicsPipeline() {
 
     if (rtxSupported)
     {
+        createSetLayout(rtxSetLayout, true);
         createGenericGraphicsPipelineLayout(rtxPipelineLayout, rtxSetLayout, true);
+        createUpdateTemplate(rtxUpdateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxPipelineLayout, rtxSetLayout,true);
         createGenericGraphicsPipeline(meshShaderModule, fragShaderModule, rtxPipelineLayout, rtxGraphicsPipeline, true);
     }
+    createSetLayout(setLayout, false);
     createGenericGraphicsPipelineLayout(pipelineLayout, setLayout, false);
+    createUpdateTemplate(updateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, setLayout, false);
     createGenericGraphicsPipeline(vertShaderModule, fragShaderModule, pipelineLayout, graphicsPipeline, false);
 
     vkDestroyShaderModule(device, fragShaderModule, nullptr);
@@ -204,5 +172,91 @@ void renderApplication::createGraphicsPipeline() {
     if (rtxSupported)
     {
         vkDestroyShaderModule(device, meshShaderModule, nullptr);
+    }
+}
+
+void renderApplication::createSetLayout(VkDescriptorSetLayout& outLayout, bool rtxEnabled)
+{
+    std::vector<VkDescriptorSetLayoutBinding> setBindings;
+
+    if (rtxEnabled)
+    {
+        setBindings.resize(2);
+        setBindings[0].binding = 0;
+        setBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        setBindings[0].descriptorCount = 1;
+        setBindings[0].stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
+
+        setBindings[1].binding = 1;
+        setBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        setBindings[1].descriptorCount = 1;
+        setBindings[1].stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
+    }
+    else
+    {
+        setBindings.resize(1);
+        setBindings[0].binding = 0;
+        setBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        setBindings[0].descriptorCount = 1;
+        setBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+    }
+
+    VkDescriptorSetLayoutCreateInfo setCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+    setCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+
+    setCreateInfo.bindingCount = setBindings.size();
+    setCreateInfo.pBindings = setBindings.data();
+
+
+    if (vkCreateDescriptorSetLayout(device, &setCreateInfo, 0, &outLayout))
+    {
+        throw std::runtime_error("failed to create descriptor layout!");
+    }
+}
+
+void renderApplication::createUpdateTemplate(VkDescriptorUpdateTemplate& outTemplate, VkPipelineBindPoint bindPoint, VkPipelineLayout inLayout, VkDescriptorSetLayout inSetLayout, bool rtxEnabled)
+{
+    std::vector<VkDescriptorUpdateTemplateEntry> entries;
+
+    if (rtxEnabled)
+    {
+        entries.resize(2);
+        entries[0].dstBinding = 0;
+        entries[0].dstArrayElement = 0;
+        entries[0].descriptorCount = 1;
+        entries[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        entries[0].offset = sizeof(DescriptorInfo) * 0;
+        entries[0].stride = sizeof(DescriptorInfo);
+
+        entries[1].dstBinding = 1;
+        entries[1].dstArrayElement = 0;
+        entries[1].descriptorCount = 1;
+        entries[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        entries[1].offset = sizeof(DescriptorInfo) * 1;
+        entries[1].stride = sizeof(DescriptorInfo);
+    }
+    else
+    {
+        entries.resize(1);
+        entries[0].dstBinding = 0;
+        entries[0].dstArrayElement = 0;
+        entries[0].descriptorCount = 1;
+        entries[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+        entries[0].offset = sizeof(DescriptorInfo) * 0;
+        entries[0].stride = sizeof(DescriptorInfo);
+    }
+
+    VkDescriptorUpdateTemplateCreateInfo createInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_CREATE_INFO };
+
+    createInfo.descriptorUpdateEntryCount = uint32_t(entries.size());
+    createInfo.pDescriptorUpdateEntries = entries.data();
+
+    createInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR;
+    createInfo.pipelineBindPoint = bindPoint;
+    createInfo.pipelineLayout = inLayout;
+    createInfo.descriptorSetLayout = inSetLayout;
+    if (vkCreateDescriptorUpdateTemplate(device, &createInfo, 0, &outTemplate) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create update template");
     }
 }

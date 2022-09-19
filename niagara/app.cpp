@@ -91,11 +91,13 @@ void renderApplication::cleanup() {
 
     if (rtxSupported)
     {
+        vkDestroyDescriptorUpdateTemplate(device, rtxUpdateTemplate, nullptr);
         vkDestroyDescriptorSetLayout(device, rtxSetLayout, nullptr);
         vkDestroyPipeline(device, rtxGraphicsPipeline, nullptr);
         vkDestroyPipelineLayout(device, rtxPipelineLayout, nullptr);
     }
 
+    vkDestroyDescriptorUpdateTemplate(device, updateTemplate, nullptr);
     vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
