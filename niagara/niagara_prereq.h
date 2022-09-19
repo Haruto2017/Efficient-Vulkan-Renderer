@@ -1,7 +1,6 @@
 #ifndef NIAGARA_PREREQ
 #define NIAGARA_PREREQ
 
-#define RTX 1
 #define QUERYCOUNT 128
 #define MESHLETTRICOUNT 84
 

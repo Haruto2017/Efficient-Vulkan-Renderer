@@ -7,6 +7,8 @@ const uint32_t HEIGHT = 1200;
 
 const int MAX_FRAMES_IN_FLIGHT = 2;
 
+bool rtxEnabled = false;
+
 const std::vector<const char*> validationLayers = {
     "VK_LAYER_KHRONOS_validation"
 };
@@ -16,9 +18,6 @@ const std::vector<const char*> deviceExtensions = {
     VK_KHR_PUSH_DESCRIPTOR_EXTENSION_NAME,
     VK_KHR_16BIT_STORAGE_EXTENSION_NAME,
     VK_KHR_8BIT_STORAGE_EXTENSION_NAME,
-#if RTX
-    VK_NV_MESH_SHADER_EXTENSION_NAME,
-#endif
 };
 
 #ifdef NDEBUG
@@ -41,6 +40,17 @@ void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
     if (func != nullptr) {
         func(instance, debugMessenger, pAllocator);
+    }
+}
+
+void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    if (action == GLFW_PRESS)
+    {
+        if (key == GLFW_KEY_R)
+        {
+            rtxEnabled = !rtxEnabled;
+        }
     }
 }
 
@@ -91,8 +101,11 @@ private:
     VkRenderPass renderPass;
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
-
     VkDescriptorSetLayout setLayout;
+
+    VkPipelineLayout rtxPipelineLayout;
+    VkPipeline rtxGraphicsPipeline;
+    VkDescriptorSetLayout rtxSetLayout;
 
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
@@ -115,12 +128,16 @@ private:
     double frameCPUAvg;
     double frameGPUAvg;
 
+    bool rtxSupported = false;
+
     void initWindow() {
         glfwInit();
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
         window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
+
+        glfwSetKeyCallback(window, keyCallback);
         glfwSetWindowUserPointer(window, this);
         glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
     }
@@ -156,8 +173,8 @@ private:
             double frameCPUEnd = glfwGetTime() * 1000;
             frameCPUAvg = frameCPUAvg * 0.95 + (frameCPUEnd - frameCPUBegin) * 0.05;
             char title[256];
-            sprintf(title, "cpu: %.1f ms; gpu: %.3f ms; triangles %d; meshlets %d", 
-                frameCPUAvg, frameGPUAvg, meshes[0].m_indices.size() / 3, meshes[0].m_meshlets.size());
+            sprintf(title, "cpu: %.1f ms; gpu: %.3f ms; triangles %d; meshlets %d; RTX %s", 
+                frameCPUAvg, frameGPUAvg, meshes[0].m_indices.size() / 3, meshes[0].m_meshlets.size(), rtxEnabled ? "ON" : "OFF");
             glfwSetWindowTitle(window, title);
         }
 
@@ -184,6 +201,13 @@ private:
         }
 
         cleanupSwapChain();
+
+        if (rtxSupported)
+        {
+            vkDestroyDescriptorSetLayout(device, rtxSetLayout, nullptr);
+            vkDestroyPipeline(device, rtxGraphicsPipeline, nullptr);
+            vkDestroyPipelineLayout(device, rtxPipelineLayout, nullptr);
+        }
 
         vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
         vkDestroyPipeline(device, graphicsPipeline, nullptr);
@@ -233,6 +257,7 @@ private:
     void createMeshes()
     {
         meshes.resize(1);
+        meshes[0].rtxSupported = rtxSupported;
         meshes[0].loadMesh("..\\kitten.obj");
 
         VkPhysicalDeviceMemoryProperties memProperties;
@@ -390,11 +415,11 @@ private:
         features13.synchronization2 = true;
         features13.maintenance4 = true;
 
-#if RTX
+
         VkPhysicalDeviceMeshShaderFeaturesNV featuresMesh = { VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MESH_SHADER_FEATURES_NV };
         featuresMesh.taskShader = true;
         featuresMesh.meshShader = true;
-#endif
+
 
         VkDeviceCreateInfo createInfo{};
         createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -409,12 +434,19 @@ private:
         features11.pNext = &features12;
         features12.pNext = &features13;
 
-#if RTX
-        features13.pNext = &featuresMesh;
-#endif
+        if (rtxSupported)
+        {
+            features13.pNext = &featuresMesh;
+        }
 
-        createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-        createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+        std::vector<const char*> wantedExtensions(deviceExtensions);
+        if (rtxSupported)
+        {
+            wantedExtensions.push_back(VK_NV_MESH_SHADER_EXTENSION_NAME);
+        }
+
+        createInfo.enabledExtensionCount = static_cast<uint32_t>(wantedExtensions.size());
+        createInfo.ppEnabledExtensionNames = wantedExtensions.data();
 
         if (enableValidationLayers) {
             createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
@@ -551,31 +583,69 @@ private:
         }
     }
 
-    void createGraphicsPipeline() {
-#if RTX
-        auto vertShaderCode = readFile("..\\compiledShader\\meshlet.mesh.spv");
-#else
-        auto vertShaderCode = readFile("..\\compiledShader\\simple.vert.spv");
-#endif
-        auto fragShaderCode = readFile("..\\compiledShader\\simple.frag.spv");
+    void createGenericGraphicsPipelineLayout(VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout& inSetLayout, bool rtxEnabled)
+    {
+        std::vector<VkDescriptorSetLayoutBinding> setBindings;
 
-        VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-        VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+        if (rtxEnabled)
+        {
+            setBindings.resize(2);
+            setBindings[0].binding = 0;
+            setBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            setBindings[0].descriptorCount = 1;
+            setBindings[0].stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
 
+            setBindings[1].binding = 1;
+            setBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            setBindings[1].descriptorCount = 1;
+            setBindings[1].stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
+        }
+        else
+        {
+            setBindings.resize(1);
+            setBindings[0].binding = 0;
+            setBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            setBindings[0].descriptorCount = 1;
+            setBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        }
+
+        VkDescriptorSetLayoutCreateInfo setCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+        setCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+
+        setCreateInfo.bindingCount = setBindings.size();
+        setCreateInfo.pBindings = setBindings.data();
+
+
+        if (vkCreateDescriptorSetLayout(device, &setCreateInfo, 0, &inSetLayout))
+        {
+            throw std::runtime_error("failed to create descriptor layout!");
+        }
+
+        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
+        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+        pipelineLayoutInfo.setLayoutCount = 1;
+        pipelineLayoutInfo.pSetLayouts = &inSetLayout;
+        pipelineLayoutInfo.pushConstantRangeCount = 0;
+
+        if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &outPipelineLayout) != VK_SUCCESS) {
+            throw std::runtime_error("failed to create pipeline layout!");
+        }
+    }
+
+    void createGenericGraphicsPipeline(VkShaderModule vs, VkShaderModule fs, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline, bool rtxEnabled)
+    {
         VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
         vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-#if RTX
-        vertShaderStageInfo.stage = VK_SHADER_STAGE_MESH_BIT_NV;
-#else
-        vertShaderStageInfo.stage = VK_SHADER_STAGE_VERTEX_BIT;
-#endif
-        vertShaderStageInfo.module = vertShaderModule;
+
+        vertShaderStageInfo.stage = rtxEnabled ? VK_SHADER_STAGE_MESH_BIT_NV : VK_SHADER_STAGE_VERTEX_BIT;
+
+        vertShaderStageInfo.module = vs;
         vertShaderStageInfo.pName = "main";
 
         VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
         fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
         fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-        fragShaderStageInfo.module = fragShaderModule;
+        fragShaderStageInfo.module = fs;
         fragShaderStageInfo.pName = "main";
 
         VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
@@ -635,47 +705,6 @@ private:
         dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
         dynamicState.pDynamicStates = dynamicStates.data();
 
-#if RTX
-        VkDescriptorSetLayoutBinding setBindings[2] = {};
-        setBindings[0].binding = 0;
-        setBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        setBindings[0].descriptorCount = 1;
-        setBindings[0].stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
-
-        setBindings[1].binding = 1;
-        setBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        setBindings[1].descriptorCount = 1;
-        setBindings[1].stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
-#else
-        VkDescriptorSetLayoutBinding setBindings[1] = {};
-        setBindings[0].binding = 0;
-        setBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        setBindings[0].descriptorCount = 1;
-        setBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
-#endif
-
-        VkDescriptorSetLayoutCreateInfo setCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-        setCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
-
-        setCreateInfo.bindingCount = sizeof(setBindings)/sizeof(setBindings[0]);
-        setCreateInfo.pBindings = setBindings;
-
-
-        if (vkCreateDescriptorSetLayout(device, &setCreateInfo, 0, &setLayout))
-        {
-            throw std::runtime_error("failed to create descriptor layout!");
-        }
-
-        VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
-        pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
-        pipelineLayoutInfo.setLayoutCount = 1;
-        pipelineLayoutInfo.pSetLayouts = &setLayout;
-        pipelineLayoutInfo.pushConstantRangeCount = 0;
-
-        if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create pipeline layout!");
-        }
-
         VkGraphicsPipelineCreateInfo pipelineInfo{};
         pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
         pipelineInfo.stageCount = 2;
@@ -687,17 +716,46 @@ private:
         pipelineInfo.pMultisampleState = &multisampling;
         pipelineInfo.pColorBlendState = &colorBlending;
         pipelineInfo.pDynamicState = &dynamicState;
-        pipelineInfo.layout = pipelineLayout;
+        pipelineInfo.layout = inPipelineLayout;
         pipelineInfo.renderPass = renderPass;
         pipelineInfo.subpass = 0;
         pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-        if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
+        if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &outPipeline) != VK_SUCCESS) {
             throw std::runtime_error("failed to create graphics pipeline!");
         }
+    }
+
+    void createGraphicsPipeline() {
+        std::vector<char> meshShaderCode;
+        VkShaderModule meshShaderModule = 0;
+        if (rtxSupported)
+        {
+            meshShaderCode = readFile("..\\compiledShader\\meshlet.mesh.spv");
+            meshShaderModule = createShaderModule(meshShaderCode);
+        }
+
+        auto vertShaderCode = readFile("..\\compiledShader\\simple.vert.spv");
+
+        auto fragShaderCode = readFile("..\\compiledShader\\simple.frag.spv");
+
+        VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
+        VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+
+        if (rtxSupported)
+        {
+            createGenericGraphicsPipelineLayout(rtxPipelineLayout, rtxSetLayout, true);
+            createGenericGraphicsPipeline(meshShaderModule, fragShaderModule, rtxPipelineLayout, rtxGraphicsPipeline, true);
+        }
+        createGenericGraphicsPipelineLayout(pipelineLayout, setLayout, false);
+        createGenericGraphicsPipeline(vertShaderModule, fragShaderModule, pipelineLayout, graphicsPipeline, false);
 
         vkDestroyShaderModule(device, fragShaderModule, nullptr);
         vkDestroyShaderModule(device, vertShaderModule, nullptr);
+        if (rtxSupported)
+        {
+            vkDestroyShaderModule(device, meshShaderModule, nullptr);
+        }
     }
 
     void createFramebuffers() {
@@ -774,8 +832,6 @@ private:
 
         vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-        vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
-
         VkViewport viewport{};
         viewport.x = 0.0f;
         viewport.y = (float)swapChainExtent.height;
@@ -792,58 +848,65 @@ private:
 
         int drawCount = 1;
 
-#if RTX
-        VkDescriptorBufferInfo vbInfo = {};
-        vbInfo.buffer = meshes[0].vb.buffer;
-        vbInfo.offset = 0;
-        vbInfo.range = meshes[0].vb.size;
+        if (rtxEnabled)
+        {
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxGraphicsPipeline);
 
-        VkDescriptorBufferInfo mbInfo = {};
-        mbInfo.buffer = meshes[0].mb.buffer;
-        mbInfo.offset = 0;
-        mbInfo.range = meshes[0].mb.size;
+            VkDescriptorBufferInfo vbInfo = {};
+            vbInfo.buffer = meshes[0].vb.buffer;
+            vbInfo.offset = 0;
+            vbInfo.range = meshes[0].vb.size;
 
-        VkWriteDescriptorSet descriptors[2] = {};
-        descriptors[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptors[0].dstSet = VK_NULL_HANDLE;
-        descriptors[0].dstBinding = 0;
-        descriptors[0].descriptorCount = 1;
-        descriptors[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptors[0].pBufferInfo = &vbInfo;
+            VkDescriptorBufferInfo mbInfo = {};
+            mbInfo.buffer = meshes[0].mb.buffer;
+            mbInfo.offset = 0;
+            mbInfo.range = meshes[0].mb.size;
 
-        descriptors[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptors[1].dstSet = VK_NULL_HANDLE;
-        descriptors[1].dstBinding = 1;
-        descriptors[1].descriptorCount = 1;
-        descriptors[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptors[1].pBufferInfo = &mbInfo;
+            VkWriteDescriptorSet descriptors[2] = {};
+            descriptors[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptors[0].dstSet = VK_NULL_HANDLE;
+            descriptors[0].dstBinding = 0;
+            descriptors[0].descriptorCount = 1;
+            descriptors[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptors[0].pBufferInfo = &vbInfo;
 
-        vkCmdPushDescriptorSetKHR(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);
-        for (int i = 0; i < drawCount; ++i)
-            vkCmdDrawMeshTasksNV(commandBuffer, uint32_t(meshes[0].m_meshlets.size()), 0);
-#else
-        VkDescriptorBufferInfo vbInfo = {};
-        vbInfo.buffer = meshes[0].vb.buffer;
-        vbInfo.offset = 0;
-        vbInfo.range = meshes[0].vb.size;
+            descriptors[1].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptors[1].dstSet = VK_NULL_HANDLE;
+            descriptors[1].dstBinding = 1;
+            descriptors[1].descriptorCount = 1;
+            descriptors[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptors[1].pBufferInfo = &mbInfo;
 
-        VkWriteDescriptorSet descriptors[1] = {};
-        descriptors[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        descriptors[0].dstSet = VK_NULL_HANDLE;
-        descriptors[0].dstBinding = 0;
-        descriptors[0].descriptorCount = 1;
-        descriptors[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        descriptors[0].pBufferInfo = &vbInfo;
+            vkCmdPushDescriptorSetKHR(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxPipelineLayout, 0, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);
+            for (int i = 0; i < drawCount; ++i)
+                vkCmdDrawMeshTasksNV(commandBuffer, uint32_t(meshes[0].m_meshlets.size()), 0);
+        }
+        else
+        {
+            vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-        vkCmdPushDescriptorSetKHR(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);
+            VkDescriptorBufferInfo vbInfo = {};
+            vbInfo.buffer = meshes[0].vb.buffer;
+            vbInfo.offset = 0;
+            vbInfo.range = meshes[0].vb.size;
 
-        // VkBuffer vertexBuffers[] = { meshes[0].vb.buffer };
-        VkDeviceSize dummyOffset = 0;
-        //vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, &dummyOffset);
-        vkCmdBindIndexBuffer(commandBuffer, meshes[0].ib.buffer, dummyOffset, VK_INDEX_TYPE_UINT32);
-        for (int i = 0; i < drawCount; ++i)
-            vkCmdDrawIndexed(commandBuffer, meshes[0].m_indices.size(), 1, 0, 0, 0);
-#endif
+            VkWriteDescriptorSet descriptors[1] = {};
+            descriptors[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+            descriptors[0].dstSet = VK_NULL_HANDLE;
+            descriptors[0].dstBinding = 0;
+            descriptors[0].descriptorCount = 1;
+            descriptors[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            descriptors[0].pBufferInfo = &vbInfo;
+
+            vkCmdPushDescriptorSetKHR(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, sizeof(descriptors) / sizeof(descriptors[0]), descriptors);
+
+            // VkBuffer vertexBuffers[] = { meshes[0].vb.buffer };
+            VkDeviceSize dummyOffset = 0;
+            //vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, &dummyOffset);
+            vkCmdBindIndexBuffer(commandBuffer, meshes[0].ib.buffer, dummyOffset, VK_INDEX_TYPE_UINT32);
+            for (int i = 0; i < drawCount; ++i)
+                vkCmdDrawIndexed(commandBuffer, meshes[0].m_indices.size(), 1, 0, 0, 0);
+        }
 
         vkCmdEndRenderPass(commandBuffer);
 
@@ -1062,7 +1125,12 @@ private:
 
         for (const auto& extension : availableExtensions) {
             requiredExtensions.erase(extension.extensionName);
+            if (std::strcmp(extension.extensionName, VK_NV_MESH_SHADER_EXTENSION_NAME))
+            {
+                rtxSupported = true;
+            }
         }
+        rtxEnabled = rtxSupported;
 
         return requiredExtensions.empty();
     }

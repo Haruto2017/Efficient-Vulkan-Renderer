@@ -1,6 +1,7 @@
 #version 460
 
 #define MESHLETTRICOUNT 84
+#define DEBUG 1
 
 #extension GL_EXT_shader_16bit_storage: require
 #extension GL_EXT_shader_8bit_storage: require
@@ -41,6 +42,17 @@ layout(location = 0) out vec3 fragColor[];
 // layout(location = 1)
 // perprimitiveNV out vec3 triangleNormal[];
 
+uint hash(uint a)
+{
+    a = (a+0x7ed55d16) + (a<<12);
+    a = (a^0xc761c23c) ^ (a>>19);
+    a = (a+0x165667b1) + (a<<5);
+    a = (a+0xd3a2646c) ^ (a<<9);
+    a = (a+0xfd7046c5) + (a<<3);
+    a = (a^0xb55a4f09) ^ (a>>16);
+    return a;
+}
+
 void main() {
     uint mi = gl_WorkGroupID.x;
     uint ti = gl_LocalInvocationID.x;
@@ -48,6 +60,11 @@ void main() {
     uint vertexCount = uint(meshlets[mi].vertexCount);
     uint triangleCount = uint(meshlets[mi].triangleCount);
     uint indexCount = triangleCount * 3;
+
+    #if DEBUG
+        uint mhash = hash(mi);
+        vec3 mcolor = vec3(float((mhash & 255)), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.f;
+    #endif
 
     for (uint i = ti; i < vertexCount; i += 32)
     {
@@ -60,6 +77,10 @@ void main() {
 
         gl_MeshVerticesNV[i].gl_Position = vec4(inPosition + vec3(0, 0, 0.5), 1.0);
         fragColor[i] = normalize(inNormal) * 0.5 + 0.5;
+
+    #if DEBUG
+        fragColor[i] = mcolor;
+    #endif
     }
 
     // for (uint i = ti; i < triangleCount; i += 32)

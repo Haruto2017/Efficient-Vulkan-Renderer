@@ -12,4 +12,8 @@
 
 * Mesh rendering with meshlet generation & optimization and mesh shader. 
 
-![Mesh_Shader_Correct](images/Mesh_Shader_Correct.png)
+    ![Mesh_Shader_Correct](images/Mesh_Shader_Correct.png)
+
+    * Visualized meshlets
+
+    ![Meshlet_Visualized](images/Meshlet_Visualized.png)

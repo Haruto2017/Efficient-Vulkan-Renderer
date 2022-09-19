@@ -181,19 +181,22 @@ void Mesh::generateRenderData(VkDevice device, VkCommandBuffer commandBuffer, Vk
 
     createBuffer(ib, device, memoryProperties, sizeof(m_indices[0]) * m_indices.size(), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
-#if RTX
-    buildMeshlets();
-    createBuffer(mb, device, memoryProperties, sizeof(m_meshlets[0]) * m_meshlets.size(), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    if (rtxSupported)
+    {
+        buildMeshlets();
+        createBuffer(mb, device, memoryProperties, sizeof(m_meshlets[0]) * m_meshlets.size(), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    }
     //memcpy(mb.data, m_meshlets.data(), sizeof(m_meshlets[0]) * m_meshlets.size());
-#endif
 
     size_t temp = m_meshlets.empty() ? sizeof(m_indices[0]) * m_indices.size() : std::max(sizeof(m_indices[0]) * m_indices.size(), sizeof(m_meshlets[0]) * m_meshlets.size());
     Buffer scratch = {};
     createBuffer(scratch, device, memoryProperties, std::max(sizeof(m_vertices[0]) * m_vertices.size(), temp), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
-#if RTX
-    uploadBuffer(device, commandBuffer, queue, mb, scratch, m_meshlets.data(), sizeof(m_meshlets[0]) * m_meshlets.size());
-#endif
+    if (rtxSupported)
+    {
+        uploadBuffer(device, commandBuffer, queue, mb, scratch, m_meshlets.data(), sizeof(m_meshlets[0]) * m_meshlets.size());
+    }
+
     uploadBuffer(device, commandBuffer, queue, vb, scratch, m_vertices.data(), m_vertices.size() * sizeof(m_vertices[0]));
     uploadBuffer(device, commandBuffer, queue, ib, scratch, m_indices.data(), m_indices.size() * sizeof(m_indices[0]));
     //memcpy(vb.data, m_vertices.data(), m_vertices.size() * sizeof(m_vertices[0]));
@@ -205,5 +208,9 @@ void Mesh::destroyRenderData(VkDevice device)
 {
     destroyBuffer(vb, device);
     destroyBuffer(ib, device);
-    destroyBuffer(mb, device);
+
+    if (rtxSupported)
+    {
+        destroyBuffer(mb, device);
+    }
 }

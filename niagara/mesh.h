@@ -66,6 +66,8 @@ public:
 	std::vector<Vertex> m_vertices;
 	std::vector<uint32_t> m_indices;
 	std::vector<Meshlet> m_meshlets;
+
+	bool rtxSupported;
 private:
 	void buildMeshlets();
 };
