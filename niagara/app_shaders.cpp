@@ -1,6 +1,64 @@
 #include "app.h"
 
-VkShaderModule renderApplication::createShaderModule(const std::vector<char>& code) {
+static VkShaderStageFlagBits getShaderStage(SpvExecutionModel executionModel)
+{
+    switch (executionModel)
+    {
+    case SpvExecutionModelVertex:
+    {
+        return VK_SHADER_STAGE_VERTEX_BIT;
+    } break;
+    case SpvExecutionModelFragment:
+    {
+        return VK_SHADER_STAGE_FRAGMENT_BIT;
+    } break;
+    case SpvExecutionModelTaskNV:
+    {
+        return VK_SHADER_STAGE_TASK_BIT_NV;
+    } break;
+    case SpvExecutionModelMeshNV:
+    {
+        return VK_SHADER_STAGE_MESH_BIT_NV;
+    } break;
+    default:
+        throw std::runtime_error("Unsupported execution model");
+        return VkShaderStageFlagBits(0);
+    }
+}
+
+static void parseShader(Shader& shader, const uint32_t* code, uint32_t codeSize)
+{
+    if (code[0] != SpvMagicNumber)
+    {
+        throw std::runtime_error("code[0] != SpvMagicNumber");
+    }
+
+    uint32_t idBound = code[3];
+
+    const uint32_t* insn = code + 5;
+
+    while (insn != code + codeSize)
+    {
+        uint16_t opcode = uint16_t(insn[0] & 0xffff);
+        uint16_t wordCount = uint16_t(insn[0] >> 16);
+
+        switch (opcode)
+        {
+        case SpvOpEntryPoint:
+        {
+            shader.stage = getShaderStage(SpvExecutionModel(insn[1]));
+        } break;
+        }
+
+        if (!(insn + wordCount <= code + codeSize))
+        {
+            throw std::runtime_error("!(insn + wordCount <= code + codeSize)");
+        }
+        insn += wordCount;
+    }
+}
+
+bool renderApplication::createShader(Shader& shader, const std::vector<char>& code) {
     VkShaderModuleCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
     createInfo.codeSize = code.size();
@@ -11,7 +69,17 @@ VkShaderModule renderApplication::createShaderModule(const std::vector<char>& co
         throw std::runtime_error("failed to create shader module!");
     }
 
-    return shaderModule;
+    parseShader(shader, reinterpret_cast<const uint32_t*>(code.data()), code.size() / 4);
+
+    shader.module = shaderModule;
+    // result.stage
+
+    return true;
+}
+
+void renderApplication::destroyShader(Shader& shader)
+{
+    vkDestroyShaderModule(device, shader.module, 0);
 }
 
 std::vector<char> renderApplication::readFile(const std::string& filename) {
@@ -45,20 +113,29 @@ void renderApplication::createGenericGraphicsPipelineLayout(VkPipelineLayout& ou
     }
 }
 
-void renderApplication::createGenericGraphicsPipeline(VkShaderModule vs, VkShaderModule fs, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline, bool rtxEnabled)
+void renderApplication::createGenericGraphicsPipeline(const Shader& vs, const Shader& fs, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline, bool rtxEnabled)
 {
+    if (!(vs.stage == VK_SHADER_STAGE_VERTEX_BIT || vs.stage == VK_SHADER_STAGE_MESH_BIT_NV))
+    {
+        throw std::runtime_error("wrong shader stage");
+    }
+    if (!(fs.stage == VK_SHADER_STAGE_FRAGMENT_BIT))
+    {
+        throw std::runtime_error("wrong shader stage");
+    }
+
     VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
     vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 
-    vertShaderStageInfo.stage = rtxEnabled ? VK_SHADER_STAGE_MESH_BIT_NV : VK_SHADER_STAGE_VERTEX_BIT;
+    vertShaderStageInfo.stage = vs.stage;
 
-    vertShaderStageInfo.module = vs;
+    vertShaderStageInfo.module = vs.module;
     vertShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
     fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    fragShaderStageInfo.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-    fragShaderStageInfo.module = fs;
+    fragShaderStageInfo.stage = fs.stage;
+    fragShaderStageInfo.module = fs.module;
     fragShaderStageInfo.pName = "main";
 
     VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
@@ -140,38 +217,50 @@ void renderApplication::createGenericGraphicsPipeline(VkShaderModule vs, VkShade
 }
 
 void renderApplication::createGraphicsPipeline() {
+    bool rc = false;
     std::vector<char> meshShaderCode;
-    VkShaderModule meshShaderModule = 0;
+    Shader meshShader = {};
     if (rtxSupported)
     {
         meshShaderCode = readFile("..\\compiledShader\\meshlet.mesh.spv");
-        meshShaderModule = createShaderModule(meshShaderCode);
+        if (!createShader(meshShader, meshShaderCode))
+        {
+            throw std::runtime_error("failed to create mesh shader");
+        }
     }
 
     auto vertShaderCode = readFile("..\\compiledShader\\simple.vert.spv");
 
     auto fragShaderCode = readFile("..\\compiledShader\\simple.frag.spv");
 
-    VkShaderModule vertShaderModule = createShaderModule(vertShaderCode);
-    VkShaderModule fragShaderModule = createShaderModule(fragShaderCode);
+    Shader vertShader = {};
+    if (!createShader(vertShader, vertShaderCode))
+    {
+        throw std::runtime_error("failed to create vert shader");
+    }
+    Shader fragShader = {};
+    if (!createShader(fragShader, fragShaderCode))
+    {
+        throw std::runtime_error("failed to create frag shader");
+    }
 
     if (rtxSupported)
     {
         createSetLayout(rtxSetLayout, true);
         createGenericGraphicsPipelineLayout(rtxPipelineLayout, rtxSetLayout, true);
         createUpdateTemplate(rtxUpdateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxPipelineLayout, rtxSetLayout,true);
-        createGenericGraphicsPipeline(meshShaderModule, fragShaderModule, rtxPipelineLayout, rtxGraphicsPipeline, true);
+        createGenericGraphicsPipeline(meshShader, fragShader, rtxPipelineLayout, rtxGraphicsPipeline, true);
     }
     createSetLayout(setLayout, false);
     createGenericGraphicsPipelineLayout(pipelineLayout, setLayout, false);
     createUpdateTemplate(updateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, setLayout, false);
-    createGenericGraphicsPipeline(vertShaderModule, fragShaderModule, pipelineLayout, graphicsPipeline, false);
+    createGenericGraphicsPipeline(vertShader, fragShader, pipelineLayout, graphicsPipeline, false);
 
-    vkDestroyShaderModule(device, fragShaderModule, nullptr);
-    vkDestroyShaderModule(device, vertShaderModule, nullptr);
+    destroyShader(fragShader);
+    destroyShader(vertShader);
     if (rtxSupported)
     {
-        vkDestroyShaderModule(device, meshShaderModule, nullptr);
+        destroyShader(meshShader);
     }
 }
 

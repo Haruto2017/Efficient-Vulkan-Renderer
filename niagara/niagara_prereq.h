@@ -8,6 +8,7 @@
 #include <GLFW/glfw3native.h>
 #include <glm/glm.hpp>
 #include "volk.h"
+#include <spirv-headers/spirv.h>
 
 #include <iostream>
 #include <fstream>

@@ -27,51 +27,6 @@ const bool enableValidationLayers = false;
 const bool enableValidationLayers = true;
 #endif
 
-struct QueueFamilyIndices {
-    std::optional<uint32_t> graphicsFamily;
-    std::optional<uint32_t> presentFamily;
-
-    bool isComplete() {
-        return graphicsFamily.has_value() && presentFamily.has_value();
-    }
-};
-
-struct SwapChainSupportDetails {
-    VkSurfaceCapabilitiesKHR capabilities;
-    std::vector<VkSurfaceFormatKHR> formats;
-    std::vector<VkPresentModeKHR> presentModes;
-};
-
-struct DescriptorInfo
-{
-    union
-    {
-        VkDescriptorImageInfo image;
-        VkDescriptorBufferInfo buffer;
-    };
-
-    DescriptorInfo(VkSampler sampler, VkImageView imageView, VkImageLayout imageLayout)
-    {
-        image.sampler = sampler;
-        image.imageView = imageView;
-        image.imageLayout = imageLayout;
-    }
-
-    DescriptorInfo(VkBuffer _buffer, VkDeviceSize offset, VkDeviceSize range)
-    {
-        buffer.buffer = _buffer;
-        buffer.offset = offset;
-        buffer.range = range;
-    }
-
-    DescriptorInfo(VkBuffer _buffer)
-    {
-        buffer.buffer = _buffer;
-        buffer.offset = 0;
-        buffer.range = VK_WHOLE_SIZE;
-    }
-};
-
 class renderApplication {
 public:
     void run();
@@ -168,7 +123,7 @@ private:
 
     void createGenericGraphicsPipelineLayout(VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout, bool rtxEnabled);
 
-    void createGenericGraphicsPipeline(VkShaderModule vs, VkShaderModule fs, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline, bool rtxEnabled);
+    void createGenericGraphicsPipeline(const Shader& vs, const Shader& fs, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline, bool rtxEnabled);
 
     void createGraphicsPipeline();
 
@@ -190,7 +145,9 @@ private:
 
     void drawFrame();
 
-    VkShaderModule createShaderModule(const std::vector<char>& code);
+    bool createShader(Shader& shader, const std::vector<char>& code);
+
+    void destroyShader(Shader& shader);
 
     VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 
