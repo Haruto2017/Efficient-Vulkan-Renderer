@@ -176,6 +176,7 @@
     <ClCompile Include="..\extern\meshoptimizer\src\vfetchoptimizer.cpp" />
     <ClCompile Include="..\extern\volk\volk.c" />
     <ClCompile Include="app.cpp" />
+    <ClCompile Include="app_basic.cpp" />
     <ClCompile Include="app_device.cpp" />
     <ClCompile Include="app_frame.cpp" />
     <ClCompile Include="app_shaders.cpp" />
