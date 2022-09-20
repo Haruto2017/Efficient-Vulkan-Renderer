@@ -129,7 +129,7 @@ private:
 
     void createSetLayout(const Shader& vs, const Shader& fs, VkDescriptorSetLayout& outLayout);
 
-    void createUpdateTemplate(const Shader& vs, const Shader& fs, VkDescriptorUpdateTemplate& outTemplate, VkPipelineBindPoint bindPoint, VkPipelineLayout inLayout, VkDescriptorSetLayout inSetLayout);
+    void createUpdateTemplate(const Shader& vs, const Shader& fs, VkDescriptorUpdateTemplate& outTemplate, VkPipelineBindPoint bindPoint, VkPipelineLayout inLayout);
 
     void createFramebuffers();
 

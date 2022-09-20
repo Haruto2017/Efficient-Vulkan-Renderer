@@ -297,12 +297,12 @@ void renderApplication::createGraphicsPipeline() {
     {
         createSetLayout(meshShader, fragShader, rtxSetLayout);
         createGenericGraphicsPipelineLayout(meshShader, fragShader, rtxPipelineLayout, rtxSetLayout);
-        createUpdateTemplate(meshShader, fragShader, rtxUpdateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxPipelineLayout, rtxSetLayout);
+        createUpdateTemplate(meshShader, fragShader, rtxUpdateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxPipelineLayout);
         createGenericGraphicsPipeline(meshShader, fragShader, rtxPipelineLayout, rtxGraphicsPipeline);
     }
     createSetLayout(vertShader, fragShader, setLayout);
     createGenericGraphicsPipelineLayout(vertShader, fragShader, pipelineLayout, setLayout);
-    createUpdateTemplate(vertShader, fragShader, updateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, setLayout);
+    createUpdateTemplate(vertShader, fragShader, updateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout);
     createGenericGraphicsPipeline(vertShader, fragShader, pipelineLayout, graphicsPipeline);
 
     destroyShader(fragShader);
@@ -355,7 +355,7 @@ void renderApplication::createSetLayout(const Shader& vs, const Shader& fs, VkDe
     }
 }
 
-void renderApplication::createUpdateTemplate(const Shader& vs, const Shader& fs, VkDescriptorUpdateTemplate& outTemplate, VkPipelineBindPoint bindPoint, VkPipelineLayout inLayout, VkDescriptorSetLayout inSetLayout)
+void renderApplication::createUpdateTemplate(const Shader& vs, const Shader& fs, VkDescriptorUpdateTemplate& outTemplate, VkPipelineBindPoint bindPoint, VkPipelineLayout inLayout)
 {
     std::vector<VkDescriptorUpdateTemplateEntry> entries;
 
@@ -385,7 +385,7 @@ void renderApplication::createUpdateTemplate(const Shader& vs, const Shader& fs,
     createInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR;
     createInfo.pipelineBindPoint = bindPoint;
     createInfo.pipelineLayout = inLayout;
-    createInfo.descriptorSetLayout = inSetLayout;
+    //createInfo.descriptorSetLayout = inSetLayout;
     if (vkCreateDescriptorUpdateTemplate(device, &createInfo, 0, &outTemplate) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create update template");
