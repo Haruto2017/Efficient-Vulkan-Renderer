@@ -59,6 +59,18 @@ struct Shader
 {
     VkShaderModule module;
     VkShaderStageFlagBits stage;
+    uint32_t storageBufferMask;
+};
+
+struct Id
+{
+    enum Kind { Unknown, Variable };
+
+    Kind kind = Unknown;
+    uint32_t type;
+    uint32_t storageClass;
+    uint32_t binding;
+    uint32_t set;
 };
 
 uint32_t findMemoryType(const VkPhysicalDeviceMemoryProperties& memoryProperties, uint32_t typeFilter, VkMemoryPropertyFlags properties);

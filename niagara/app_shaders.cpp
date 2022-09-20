@@ -35,6 +35,8 @@ static void parseShader(Shader& shader, const uint32_t* code, uint32_t codeSize)
 
     uint32_t idBound = code[3];
 
+    std::vector<Id> ids(idBound);
+
     const uint32_t* insn = code + 5;
 
     while (insn != code + codeSize)
@@ -46,7 +48,42 @@ static void parseShader(Shader& shader, const uint32_t* code, uint32_t codeSize)
         {
         case SpvOpEntryPoint:
         {
+            if (wordCount < 2)
+            {
+                throw std::runtime_error("bad word count");
+            }
             shader.stage = getShaderStage(SpvExecutionModel(insn[1]));
+        } break;
+        case SpvOpDecorate:
+        {
+            if (wordCount < 3)
+            {
+                throw std::runtime_error("bad word count");
+            }
+            uint32_t id = insn[1];
+
+            switch (insn[2])
+            {
+            case SpvDecorationDescriptorSet:
+                ids[id].set = insn[3];
+                break;
+            case SpvDecorationBinding:
+                ids[id].binding = insn[3];
+                break;
+            }
+
+        } break;
+        case SpvOpVariable:
+        {
+            if (wordCount < 2)
+            {
+                throw std::runtime_error("bad word count");
+            }
+            uint32_t id = insn[2];
+
+            ids[id].kind = Id::Variable;
+            ids[id].type = insn[1];
+            ids[id].storageClass = insn[3];
         } break;
         }
 
@@ -55,6 +92,18 @@ static void parseShader(Shader& shader, const uint32_t* code, uint32_t codeSize)
             throw std::runtime_error("!(insn + wordCount <= code + codeSize)");
         }
         insn += wordCount;
+    }
+
+    for (auto& id : ids)
+    {
+        if (id.kind == Id::Variable && id.storageClass == SpvStorageClassUniform)
+        {
+            assert(id.set == 0);
+            assert(id.binding < 32);
+            assert((shader.storageBufferMask & (1 << id.binding)) == 0);
+
+            shader.storageBufferMask |= 1 << id.binding;
+        }
     }
 }
 
@@ -100,7 +149,7 @@ std::vector<char> renderApplication::readFile(const std::string& filename) {
     return buffer;
 }
 
-void renderApplication::createGenericGraphicsPipelineLayout(VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout, bool rtxEnabled)
+void renderApplication::createGenericGraphicsPipelineLayout(const Shader& vs, const Shader& fs, VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout)
 {
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -113,7 +162,7 @@ void renderApplication::createGenericGraphicsPipelineLayout(VkPipelineLayout& ou
     }
 }
 
-void renderApplication::createGenericGraphicsPipeline(const Shader& vs, const Shader& fs, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline, bool rtxEnabled)
+void renderApplication::createGenericGraphicsPipeline(const Shader& vs, const Shader& fs, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline)
 {
     if (!(vs.stage == VK_SHADER_STAGE_VERTEX_BIT || vs.stage == VK_SHADER_STAGE_MESH_BIT_NV))
     {
@@ -246,15 +295,15 @@ void renderApplication::createGraphicsPipeline() {
 
     if (rtxSupported)
     {
-        createSetLayout(rtxSetLayout, true);
-        createGenericGraphicsPipelineLayout(rtxPipelineLayout, rtxSetLayout, true);
-        createUpdateTemplate(rtxUpdateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxPipelineLayout, rtxSetLayout,true);
-        createGenericGraphicsPipeline(meshShader, fragShader, rtxPipelineLayout, rtxGraphicsPipeline, true);
+        createSetLayout(meshShader, fragShader, rtxSetLayout);
+        createGenericGraphicsPipelineLayout(meshShader, fragShader, rtxPipelineLayout, rtxSetLayout);
+        createUpdateTemplate(meshShader, fragShader, rtxUpdateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxPipelineLayout, rtxSetLayout);
+        createGenericGraphicsPipeline(meshShader, fragShader, rtxPipelineLayout, rtxGraphicsPipeline);
     }
-    createSetLayout(setLayout, false);
-    createGenericGraphicsPipelineLayout(pipelineLayout, setLayout, false);
-    createUpdateTemplate(updateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, setLayout, false);
-    createGenericGraphicsPipeline(vertShader, fragShader, pipelineLayout, graphicsPipeline, false);
+    createSetLayout(vertShader, fragShader, setLayout);
+    createGenericGraphicsPipelineLayout(vertShader, fragShader, pipelineLayout, setLayout);
+    createUpdateTemplate(vertShader, fragShader, updateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, setLayout);
+    createGenericGraphicsPipeline(vertShader, fragShader, pipelineLayout, graphicsPipeline);
 
     destroyShader(fragShader);
     destroyShader(vertShader);
@@ -264,30 +313,33 @@ void renderApplication::createGraphicsPipeline() {
     }
 }
 
-void renderApplication::createSetLayout(VkDescriptorSetLayout& outLayout, bool rtxEnabled)
+void renderApplication::createSetLayout(const Shader& vs, const Shader& fs, VkDescriptorSetLayout& outLayout)
 {
     std::vector<VkDescriptorSetLayoutBinding> setBindings;
 
-    if (rtxEnabled)
-    {
-        setBindings.resize(2);
-        setBindings[0].binding = 0;
-        setBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        setBindings[0].descriptorCount = 1;
-        setBindings[0].stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
+    uint32_t storageBufferMask = vs.storageBufferMask | fs.storageBufferMask;
 
-        setBindings[1].binding = 1;
-        setBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        setBindings[1].descriptorCount = 1;
-        setBindings[1].stageFlags = VK_SHADER_STAGE_MESH_BIT_NV;
-    }
-    else
+    for (uint32_t i = 0; i < 32; ++i)
     {
-        setBindings.resize(1);
-        setBindings[0].binding = 0;
-        setBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        setBindings[0].descriptorCount = 1;
-        setBindings[0].stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+        if (storageBufferMask & (1 << i))
+        {
+            VkDescriptorSetLayoutBinding binding = {};
+            binding.binding = i;
+            binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            binding.descriptorCount = 1;
+
+            binding.stageFlags = 0;
+            if (vs.storageBufferMask & (1 << i))
+            {
+                binding.stageFlags |= vs.stage;
+            }
+            if (fs.storageBufferMask & (1 << i))
+            {
+                binding.stageFlags |= fs.stage;
+            }
+
+            setBindings.push_back(binding);
+        }
     }
 
     VkDescriptorSetLayoutCreateInfo setCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
@@ -303,36 +355,26 @@ void renderApplication::createSetLayout(VkDescriptorSetLayout& outLayout, bool r
     }
 }
 
-void renderApplication::createUpdateTemplate(VkDescriptorUpdateTemplate& outTemplate, VkPipelineBindPoint bindPoint, VkPipelineLayout inLayout, VkDescriptorSetLayout inSetLayout, bool rtxEnabled)
+void renderApplication::createUpdateTemplate(const Shader& vs, const Shader& fs, VkDescriptorUpdateTemplate& outTemplate, VkPipelineBindPoint bindPoint, VkPipelineLayout inLayout, VkDescriptorSetLayout inSetLayout)
 {
     std::vector<VkDescriptorUpdateTemplateEntry> entries;
 
-    if (rtxEnabled)
-    {
-        entries.resize(2);
-        entries[0].dstBinding = 0;
-        entries[0].dstArrayElement = 0;
-        entries[0].descriptorCount = 1;
-        entries[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        entries[0].offset = sizeof(DescriptorInfo) * 0;
-        entries[0].stride = sizeof(DescriptorInfo);
+    uint32_t storageBufferMask = vs.storageBufferMask | fs.storageBufferMask;
 
-        entries[1].dstBinding = 1;
-        entries[1].dstArrayElement = 0;
-        entries[1].descriptorCount = 1;
-        entries[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        entries[1].offset = sizeof(DescriptorInfo) * 1;
-        entries[1].stride = sizeof(DescriptorInfo);
-    }
-    else
+    for (uint32_t i = 0; i < 32; ++i)
     {
-        entries.resize(1);
-        entries[0].dstBinding = 0;
-        entries[0].dstArrayElement = 0;
-        entries[0].descriptorCount = 1;
-        entries[0].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-        entries[0].offset = sizeof(DescriptorInfo) * 0;
-        entries[0].stride = sizeof(DescriptorInfo);
+        if (storageBufferMask & (1 << i))
+        {
+            VkDescriptorUpdateTemplateEntry entry = {};
+            entry.dstBinding = i;
+            entry.dstArrayElement = 0;
+            entry.descriptorCount = 1;
+            entry.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            entry.offset = sizeof(DescriptorInfo) * i;
+            entry.stride = sizeof(DescriptorInfo);
+
+            entries.push_back(entry);
+        }
     }
 
     VkDescriptorUpdateTemplateCreateInfo createInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_CREATE_INFO };
