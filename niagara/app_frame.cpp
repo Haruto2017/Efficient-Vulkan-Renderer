@@ -39,7 +39,7 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     scissor.extent = swapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    int drawCount = 1;
+    int drawCount = 100;
 
     if (rtxEnabled && rtxSupported)
     {

@@ -44,8 +44,9 @@ struct Vertex
 	}
 };
 
-struct Meshlet
+struct alignas(16) Meshlet
 {
+	float cone[4];
 	uint32_t vertices[64];
 	uint8_t indices[MESHLETTRICOUNT * 3]; // up to 126 triangles
 	uint8_t triangleCount; 
@@ -70,6 +71,7 @@ public:
 	bool rtxSupported;
 private:
 	void buildMeshlets();
+	void buildMeshletCones();
 };
 
 #endif

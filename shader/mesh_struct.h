@@ -9,6 +9,7 @@ struct Vertex
 
 struct Meshlet
 {
+    vec4 cone;
 	uint vertices[64];
 	uint8_t indices[MESHLETTRICOUNT*3]; // up to 126 triangles
     //uint indicesPacked[MESHLETTRICOUNT*3 / 4];
