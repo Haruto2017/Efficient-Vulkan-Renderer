@@ -11,7 +11,7 @@
 
 * Mesh rendering with meshlet generation & optimization and mesh shader. 
 
-    ![Mesh_Shader_Correct](images/Mesh_Shader_Correct.png)
+    ![Mesh_Shader_Correct](images/Simple_Mesh_Front.png)
 
     * Visualized meshlets
 
@@ -30,5 +30,10 @@
         5. Corner case: if the meshlet has triangles with normal distributing over a range of over 180 degrees, no matter what the view direction 
         is, we can see some triangles so the meshlet must be kept.
 
-    * This image is rendered by enabling meshlet culling and culling front-facing triangles in rasterization stage to show the result.
+    * This image is rendered by enabling meshlet culling and also culling front-facing triangles in rasterization stage to show the result.
+
     ![Meshlet_Culling](images/Backface_Cone_Culling.png)
+
+    * This image is the result without meshlet culling
+
+    ![Mesh_Shader_Correct](images/Mesh_Shader_Correct.png)
