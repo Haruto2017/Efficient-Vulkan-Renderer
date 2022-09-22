@@ -4,6 +4,7 @@ void renderApplication::createMeshes()
 {
     meshes.resize(1);
     meshes[0].rtxSupported = rtxSupported;
+    //meshes[0].loadMesh("..\\extern\\common-3d-test-models\\data\\xyzrgb_dragon.obj");
     meshes[0].loadMesh("..\\kitten.obj");
 
     VkPhysicalDeviceMemoryProperties memProperties;
