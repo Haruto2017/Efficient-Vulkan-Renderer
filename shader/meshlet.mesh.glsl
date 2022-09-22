@@ -24,6 +24,11 @@ layout(binding = 1) buffer readonly Meshlets
     Meshlet meshlets[];
 };
 
+layout(binding = 2) buffer readonly MeshletData
+{
+    uint meshletData[];
+};
+
 in taskNV block 
 {
     uint meshletIndices[32];
@@ -53,6 +58,10 @@ void main() {
     uint triangleCount = uint(meshlets[mi].triangleCount);
     uint indexCount = triangleCount * 3;
 
+    uint dataOffset = meshlets[mi].dataOffset;
+    uint vertexOffset = dataOffset;
+    uint indexOffset = dataOffset + vertexCount;
+
     #if DEBUG
         uint mhash = hash(mi);
         vec3 mcolor = vec3(float((mhash & 255)), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.f;
@@ -60,7 +69,7 @@ void main() {
 
     for (uint i = ti; i < vertexCount; i += 32)
     {
-        uint vi = meshlets[mi].vertices[i];
+        uint vi = meshletData[vertexOffset + i];
         Vertex v = vertices[vi];
 
         vec3 inPosition = vec3(v.vx, v.vy, v.vz);
@@ -79,7 +88,7 @@ void main() {
 
     for (uint i = ti; i < indexGroupCount; i += 32)
     {
-        writePackedPrimitiveIndices4x8NV(i * 4, meshlets[mi].indicesPacked[i]);
+        writePackedPrimitiveIndices4x8NV(i * 4, meshletData[indexOffset + i]);
     }
 
     if (ti == 0)

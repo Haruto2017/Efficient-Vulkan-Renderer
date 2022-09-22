@@ -71,7 +71,7 @@ void renderApplication::mainLoop() {
         drawFrame();
         double frameCPUEnd = glfwGetTime() * 1000;
         frameCPUAvg = frameCPUAvg * 0.95 + (frameCPUEnd - frameCPUBegin) * 0.05;
-        double trianglesPerSec = double(drawCount) * double(meshes[0].m_indices.size() / 3) / double((frameGPUEnd - frameGPUBegin) * 1e-3);
+        double trianglesPerSec = double(drawCount) * double(meshes[0].m_indices.size() / 3) / double(frameGPUAvg * 1e-3);
         char title[256];
         sprintf(title, "cpu: %.1f ms; gpu: %.3f ms; triangles %d; meshlets %d; mesh shading %s; %.1fB tri/sec",
             frameCPUAvg, frameGPUAvg, meshes[0].m_indices.size() / 3, meshes[0].m_meshlets.size(), rtxEnabled ? "ON" : "OFF", trianglesPerSec * 1e-9);

@@ -43,7 +43,7 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     {
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxGraphicsPipeline);
 
-        DescriptorInfo descriptors[] = {meshes[0].vb.buffer, meshes[0].mb.buffer};
+        DescriptorInfo descriptors[] = {meshes[0].vb.buffer, meshes[0].mb.buffer, meshes[0].mdb.buffer};
 
         vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, rtxUpdateTemplate, rtxPipelineLayout, 0, descriptors);
         for (int i = 0; i < drawCount; ++i)

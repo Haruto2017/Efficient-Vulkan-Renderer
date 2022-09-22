@@ -47,8 +47,7 @@ struct Vertex
 struct alignas(16) Meshlet
 {
 	float cone[4];
-	uint32_t vertices[64];
-	uint8_t indices[MESHLETTRICOUNT * 3]; // up to MESHLETCOUNT triangles
+	uint32_t dataOffset;
 	uint8_t triangleCount; 
 	uint8_t vertexCount;
 };
@@ -63,10 +62,12 @@ public:
 	Buffer vb;
 	Buffer ib;
 	Buffer mb;
+	Buffer mdb;
 
 	std::vector<Vertex> m_vertices;
 	std::vector<uint32_t> m_indices;
 	std::vector<Meshlet> m_meshlets;
+	std::vector<uint32_t> m_meshlet_data;
 
 	// To Do: use meshlet_vertices & meshlet_indices buffers
 
