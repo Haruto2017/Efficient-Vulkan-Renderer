@@ -62,6 +62,8 @@ struct Shader
     uint32_t storageBufferMask;
 };
 
+using Shaders = std::initializer_list<const Shader*>;
+
 struct Id
 {
     enum Kind { Unknown, Variable };

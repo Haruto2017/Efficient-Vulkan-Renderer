@@ -121,15 +121,15 @@ private:
 
     void createRenderPass();
 
-    void createGenericGraphicsPipelineLayout(const Shader& vs, const Shader& fs, VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout);
+    void createGenericGraphicsPipelineLayout(Shaders shaders, VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout);
 
-    void createGenericGraphicsPipeline(const Shader& vs, const Shader& fs, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline);
+    void createGenericGraphicsPipeline(Shaders shaders, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline);
 
     void createGraphicsPipeline();
 
-    void createSetLayout(const Shader& vs, const Shader& fs, VkDescriptorSetLayout& outLayout);
+    void createSetLayout(Shaders shaders, VkDescriptorSetLayout& outLayout);
 
-    void createUpdateTemplate(const Shader& vs, const Shader& fs, VkDescriptorUpdateTemplate& outTemplate, VkPipelineBindPoint bindPoint, VkPipelineLayout inLayout);
+    void createUpdateTemplate(Shaders shaders, VkDescriptorUpdateTemplate& outTemplate, VkPipelineBindPoint bindPoint, VkPipelineLayout inLayout);
 
     void createFramebuffers();
 

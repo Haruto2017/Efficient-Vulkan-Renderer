@@ -149,7 +149,7 @@ std::vector<char> renderApplication::readFile(const std::string& filename) {
     return buffer;
 }
 
-void renderApplication::createGenericGraphicsPipelineLayout(const Shader& vs, const Shader& fs, VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout)
+void renderApplication::createGenericGraphicsPipelineLayout(Shaders shaders, VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout)
 {
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -162,32 +162,17 @@ void renderApplication::createGenericGraphicsPipelineLayout(const Shader& vs, co
     }
 }
 
-void renderApplication::createGenericGraphicsPipeline(const Shader& vs, const Shader& fs, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline)
+void renderApplication::createGenericGraphicsPipeline(Shaders shaders, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline)
 {
-    if (!(vs.stage == VK_SHADER_STAGE_VERTEX_BIT || vs.stage == VK_SHADER_STAGE_MESH_BIT_NV))
+    std::vector<VkPipelineShaderStageCreateInfo> stages;
+    for (const Shader* shader : shaders)
     {
-        throw std::runtime_error("wrong shader stage");
+        VkPipelineShaderStageCreateInfo stage = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+        stage.stage = shader->stage;;
+        stage.module = shader->module;
+        stage.pName = "main";
+        stages.push_back(stage);
     }
-    if (!(fs.stage == VK_SHADER_STAGE_FRAGMENT_BIT))
-    {
-        throw std::runtime_error("wrong shader stage");
-    }
-
-    VkPipelineShaderStageCreateInfo vertShaderStageInfo{};
-    vertShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-
-    vertShaderStageInfo.stage = vs.stage;
-
-    vertShaderStageInfo.module = vs.module;
-    vertShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo fragShaderStageInfo{};
-    fragShaderStageInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
-    fragShaderStageInfo.stage = fs.stage;
-    fragShaderStageInfo.module = fs.module;
-    fragShaderStageInfo.pName = "main";
-
-    VkPipelineShaderStageCreateInfo shaderStages[] = { vertShaderStageInfo, fragShaderStageInfo };
 
     auto bindingDescription = Vertex::getBindingDescription();
     auto attributeDescriptions = Vertex::getAttributeDescriptions();
@@ -246,8 +231,8 @@ void renderApplication::createGenericGraphicsPipeline(const Shader& vs, const Sh
 
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-    pipelineInfo.stageCount = 2;
-    pipelineInfo.pStages = shaderStages;
+    pipelineInfo.stageCount = uint32_t(stages.size());
+    pipelineInfo.pStages = stages.data();
     pipelineInfo.pVertexInputState = &vertexInputInfo;
     pipelineInfo.pInputAssemblyState = &inputAssembly;
     pipelineInfo.pViewportState = &viewportState;
@@ -262,6 +247,92 @@ void renderApplication::createGenericGraphicsPipeline(const Shader& vs, const Sh
 
     if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &outPipeline) != VK_SUCCESS) {
         throw std::runtime_error("failed to create graphics pipeline!");
+    }
+}
+
+void renderApplication::createSetLayout(Shaders shaders, VkDescriptorSetLayout& outLayout)
+{
+    std::vector<VkDescriptorSetLayoutBinding> setBindings;
+
+    uint32_t storageBufferMask = 0;
+    for (const Shader* shader : shaders)
+    {
+        storageBufferMask |= shader->storageBufferMask;
+    }
+
+    for (uint32_t i = 0; i < 32; ++i)
+    {
+        if (storageBufferMask & (1 << i))
+        {
+            VkDescriptorSetLayoutBinding binding = {};
+            binding.binding = i;
+            binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            binding.descriptorCount = 1;
+
+            binding.stageFlags = 0;
+            for (const Shader* shader : shaders)
+            {
+                if (shader->storageBufferMask & (1 << i))
+                {
+                    binding.stageFlags |= shader->stage;
+                }
+            }
+
+            setBindings.push_back(binding);
+        }
+    }
+
+    VkDescriptorSetLayoutCreateInfo setCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
+    setCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
+
+    setCreateInfo.bindingCount = setBindings.size();
+    setCreateInfo.pBindings = setBindings.data();
+
+
+    if (vkCreateDescriptorSetLayout(device, &setCreateInfo, 0, &outLayout))
+    {
+        throw std::runtime_error("failed to create descriptor layout!");
+    }
+}
+
+void renderApplication::createUpdateTemplate(Shaders shaders, VkDescriptorUpdateTemplate& outTemplate, VkPipelineBindPoint bindPoint, VkPipelineLayout inLayout)
+{
+    std::vector<VkDescriptorUpdateTemplateEntry> entries;
+
+    uint32_t storageBufferMask = 0;
+    for (const Shader* shader : shaders)
+    {
+        storageBufferMask |= shader->storageBufferMask;
+    }
+
+    for (uint32_t i = 0; i < 32; ++i)
+    {
+        if (storageBufferMask & (1 << i))
+        {
+            VkDescriptorUpdateTemplateEntry entry = {};
+            entry.dstBinding = i;
+            entry.dstArrayElement = 0;
+            entry.descriptorCount = 1;
+            entry.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            entry.offset = sizeof(DescriptorInfo) * i;
+            entry.stride = sizeof(DescriptorInfo);
+
+            entries.push_back(entry);
+        }
+    }
+
+    VkDescriptorUpdateTemplateCreateInfo createInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_CREATE_INFO };
+
+    createInfo.descriptorUpdateEntryCount = uint32_t(entries.size());
+    createInfo.pDescriptorUpdateEntries = entries.data();
+
+    createInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR;
+    createInfo.pipelineBindPoint = bindPoint;
+    createInfo.pipelineLayout = inLayout;
+    //createInfo.descriptorSetLayout = inSetLayout;
+    if (vkCreateDescriptorUpdateTemplate(device, &createInfo, 0, &outTemplate) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create update template");
     }
 }
 
@@ -295,99 +366,20 @@ void renderApplication::createGraphicsPipeline() {
 
     if (rtxSupported)
     {
-        createSetLayout(meshShader, fragShader, rtxSetLayout);
-        createGenericGraphicsPipelineLayout(meshShader, fragShader, rtxPipelineLayout, rtxSetLayout);
-        createUpdateTemplate(meshShader, fragShader, rtxUpdateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxPipelineLayout);
-        createGenericGraphicsPipeline(meshShader, fragShader, rtxPipelineLayout, rtxGraphicsPipeline);
+        createSetLayout({ &meshShader, &fragShader }, rtxSetLayout);
+        createGenericGraphicsPipelineLayout({ &meshShader, &fragShader }, rtxPipelineLayout, rtxSetLayout);
+        createUpdateTemplate({ &meshShader, &fragShader }, rtxUpdateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxPipelineLayout);
+        createGenericGraphicsPipeline({ &meshShader, &fragShader }, rtxPipelineLayout, rtxGraphicsPipeline);
     }
-    createSetLayout(vertShader, fragShader, setLayout);
-    createGenericGraphicsPipelineLayout(vertShader, fragShader, pipelineLayout, setLayout);
-    createUpdateTemplate(vertShader, fragShader, updateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout);
-    createGenericGraphicsPipeline(vertShader, fragShader, pipelineLayout, graphicsPipeline);
+    createSetLayout({ &vertShader, &fragShader }, setLayout);
+    createGenericGraphicsPipelineLayout({ &vertShader, &fragShader }, pipelineLayout, setLayout);
+    createUpdateTemplate({ &vertShader, &fragShader }, updateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout);
+    createGenericGraphicsPipeline({ &vertShader, &fragShader }, pipelineLayout, graphicsPipeline);
 
     destroyShader(fragShader);
     destroyShader(vertShader);
     if (rtxSupported)
     {
         destroyShader(meshShader);
-    }
-}
-
-void renderApplication::createSetLayout(const Shader& vs, const Shader& fs, VkDescriptorSetLayout& outLayout)
-{
-    std::vector<VkDescriptorSetLayoutBinding> setBindings;
-
-    uint32_t storageBufferMask = vs.storageBufferMask | fs.storageBufferMask;
-
-    for (uint32_t i = 0; i < 32; ++i)
-    {
-        if (storageBufferMask & (1 << i))
-        {
-            VkDescriptorSetLayoutBinding binding = {};
-            binding.binding = i;
-            binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            binding.descriptorCount = 1;
-
-            binding.stageFlags = 0;
-            if (vs.storageBufferMask & (1 << i))
-            {
-                binding.stageFlags |= vs.stage;
-            }
-            if (fs.storageBufferMask & (1 << i))
-            {
-                binding.stageFlags |= fs.stage;
-            }
-
-            setBindings.push_back(binding);
-        }
-    }
-
-    VkDescriptorSetLayoutCreateInfo setCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
-    setCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
-
-    setCreateInfo.bindingCount = setBindings.size();
-    setCreateInfo.pBindings = setBindings.data();
-
-
-    if (vkCreateDescriptorSetLayout(device, &setCreateInfo, 0, &outLayout))
-    {
-        throw std::runtime_error("failed to create descriptor layout!");
-    }
-}
-
-void renderApplication::createUpdateTemplate(const Shader& vs, const Shader& fs, VkDescriptorUpdateTemplate& outTemplate, VkPipelineBindPoint bindPoint, VkPipelineLayout inLayout)
-{
-    std::vector<VkDescriptorUpdateTemplateEntry> entries;
-
-    uint32_t storageBufferMask = vs.storageBufferMask | fs.storageBufferMask;
-
-    for (uint32_t i = 0; i < 32; ++i)
-    {
-        if (storageBufferMask & (1 << i))
-        {
-            VkDescriptorUpdateTemplateEntry entry = {};
-            entry.dstBinding = i;
-            entry.dstArrayElement = 0;
-            entry.descriptorCount = 1;
-            entry.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-            entry.offset = sizeof(DescriptorInfo) * i;
-            entry.stride = sizeof(DescriptorInfo);
-
-            entries.push_back(entry);
-        }
-    }
-
-    VkDescriptorUpdateTemplateCreateInfo createInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_CREATE_INFO };
-
-    createInfo.descriptorUpdateEntryCount = uint32_t(entries.size());
-    createInfo.pDescriptorUpdateEntries = entries.data();
-
-    createInfo.templateType = VK_DESCRIPTOR_UPDATE_TEMPLATE_TYPE_PUSH_DESCRIPTORS_KHR;
-    createInfo.pipelineBindPoint = bindPoint;
-    createInfo.pipelineLayout = inLayout;
-    //createInfo.descriptorSetLayout = inSetLayout;
-    if (vkCreateDescriptorUpdateTemplate(device, &createInfo, 0, &outTemplate) != VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to create update template");
     }
 }
