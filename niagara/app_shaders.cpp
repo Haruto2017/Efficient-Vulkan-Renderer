@@ -69,6 +69,7 @@ static void parseShader(Shader& shader, const uint32_t* code, uint32_t codeSize)
                 break;
             case SpvDecorationBinding:
                 ids[id].binding = insn[3];
+                int a = 0;
                 break;
             }
 
@@ -96,7 +97,7 @@ static void parseShader(Shader& shader, const uint32_t* code, uint32_t codeSize)
 
     for (auto& id : ids)
     {
-        if (id.kind == Id::Variable && id.storageClass == SpvStorageClassUniform)
+        if (id.kind == Id::Variable && id.storageClass == SpvStorageClassStorageBuffer)
         {
             assert(id.set == 0);
             assert(id.binding < 32);

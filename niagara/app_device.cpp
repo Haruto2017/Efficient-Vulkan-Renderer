@@ -100,6 +100,7 @@ void renderApplication::createLogicalDevice() {
     if (rtxSupported)
     {
         wantedExtensions.push_back(VK_NV_MESH_SHADER_EXTENSION_NAME);
+        wantedExtensions.push_back(VK_KHR_MAINTENANCE_4_EXTENSION_NAME);
     }
 
     createInfo.enabledExtensionCount = static_cast<uint32_t>(wantedExtensions.size());

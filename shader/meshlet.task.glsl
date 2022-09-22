@@ -1,11 +1,15 @@
 #version 460
 
+#define CULL 1
+
 #extension GL_EXT_shader_16bit_storage: require
 #extension GL_EXT_shader_8bit_storage: require
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 #extension GL_NV_mesh_shader: require
 
 #extension GL_GOOGLE_include_directive: require
+
+#extension GL_KHR_shader_subgroup_ballot: require
 
 #include "mesh_struct.h"
 
@@ -26,27 +30,32 @@ bool coneCull(vec4 cone, vec3 view)
     return dot(cone.xyz, view) > cone.w;
 }
 
-shared uint meshletCount;
-
 void main() {
     uint mgi = gl_WorkGroupID.x;
     uint ti = gl_LocalInvocationID.x;
     uint mi = mgi * 32 + ti;
 
-    meshletCount = 0;
+#if CULL
+    bool accept = !coneCull(meshlets[mi].cone, vec3(0, 0, 1));
+    uvec4 ballot = subgroupBallot(accept);
+    uint index = subgroupBallotExclusiveBitCount(ballot);
 
-    memoryBarrierShared();
-
-    if (!(coneCull(meshlets[mi].cone, vec3(0, 0, 1))))
+    if (accept)
     {
-        uint index = atomicAdd(meshletCount, 1);
         meshletIndices[index] = mi;
     }
 
-    memoryBarrierShared();
+    uint count = subgroupBallotBitCount(ballot);
 
     if (ti == 0)
     {
-        gl_TaskCountNV = meshletCount;
+        gl_TaskCountNV = count;
     }
+#else
+    meshletIndices[ti] = mi;
+    if (ti == 0)
+    {
+        gl_TaskCountNV = 32;
+    }
+#endif
 }
