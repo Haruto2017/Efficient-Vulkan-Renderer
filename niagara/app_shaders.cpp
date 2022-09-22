@@ -197,8 +197,11 @@ void renderApplication::createGenericGraphicsPipeline(Shaders shaders, VkPipelin
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
+#if VISUALIZE_BACK_CULLING
+    rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT;
+#else
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-    //rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT;
+#endif
     rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
 

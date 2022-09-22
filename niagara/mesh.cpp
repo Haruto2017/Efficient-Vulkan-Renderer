@@ -119,17 +119,10 @@ void Mesh::buildMeshlets()
     {
         uint32_t tri_offset = meshlets[i].triangle_offset;
         
-        for (uint32_t j = 0; j < meshlets[i].triangle_count * 3; ++j)
-        {
-            m_meshlets[i].indices[j] = meshlet_triangles[tri_offset + j];
-        }
+        memcpy(m_meshlets[i].indices, meshlet_triangles.data() + tri_offset, meshlets[i].triangle_count * 3);
 
         uint32_t vert_offset = meshlets[i].vertex_offset;
-
-        for (uint32_t j = 0; j < meshlets[i].vertex_count; ++j)
-        {
-            m_meshlets[i].vertices[j] = meshlet_vertices[vert_offset + j];
-        }
+        memcpy(m_meshlets[i].vertices, meshlet_vertices.data() + vert_offset, meshlets[i].vertex_count * 4);
 
         m_meshlets[i].triangleCount = (uint8_t)meshlets[i].triangle_count;
         m_meshlets[i].vertexCount = (uint8_t)meshlets[i].vertex_count;
