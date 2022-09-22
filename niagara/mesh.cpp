@@ -105,68 +105,34 @@ void Mesh::loadMesh(std::string objpath)
 
 void Mesh::buildMeshlets()
 {
-    Meshlet meshlet = {};
+    size_t max_vertices = 64;
+    size_t max_triangles = MESHLETTRICOUNT;
+    std::vector<meshopt_Meshlet> meshlets(meshopt_buildMeshletsBound(m_indices.size(), max_vertices, max_triangles));
+    std::vector<uint8_t> meshlet_triangles(meshlets.size() * max_triangles * 3);
+    std::vector<uint32_t> meshlet_vertices(meshlets.size() * max_vertices);
 
-    std::unordered_map<unsigned int, uint8_t> curr;
+    meshlets.resize(meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), m_indices.data(), m_indices.size(), (const float*)m_vertices.data(), m_vertices.size(), sizeof(Vertex), max_vertices, max_triangles, 1.0));
 
-    for (size_t i = 0; i < m_indices.size(); i += 3)
+    m_meshlets.resize(meshlets.size());
+
+    for (uint32_t i = 0; i < m_meshlets.size(); ++i)
     {
-        unsigned int a = m_indices[i + 0];
-        unsigned int b = m_indices[i + 1];
-        unsigned int c = m_indices[i + 2];
-
-        uint8_t av = 0xff;
-        if (curr.find(a) != curr.end())
+        uint32_t tri_offset = meshlets[i].triangle_offset;
+        
+        for (uint32_t j = 0; j < meshlets[i].triangle_count * 3; ++j)
         {
-            av = curr[a];
-        }
-        uint8_t bv = 0xff;
-        if (curr.find(b) != curr.end())
-        {
-            bv = curr[b];
-        }
-        uint8_t cv = 0xff;
-        if (curr.find(c) != curr.end())
-        {
-            cv = curr[c];
+            m_meshlets[i].indices[j] = meshlet_triangles[tri_offset + j];
         }
 
-        if (meshlet.vertexCount + (av == 0xff) + (bv == 0xff) + (cv == 0xff) > 64 || meshlet.triangleCount >= MESHLETTRICOUNT)
+        uint32_t vert_offset = meshlets[i].vertex_offset;
+
+        for (uint32_t j = 0; j < meshlets[i].vertex_count; ++j)
         {
-            m_meshlets.push_back(meshlet);
-            meshlet = {};
-            curr.clear();
-            av = 0xff;
-            bv = 0xff;
-            cv = 0xff;
+            m_meshlets[i].vertices[j] = meshlet_vertices[vert_offset + j];
         }
 
-        if (av == 0xff)
-        {
-            curr[a] = meshlet.vertexCount;
-            meshlet.vertices[meshlet.vertexCount++] = a;
-        }
-
-        if (bv == 0xff)
-        {
-            curr[b] = meshlet.vertexCount;
-            meshlet.vertices[meshlet.vertexCount++] = b;
-        }
-
-        if (cv == 0xff)
-        {
-            curr[c] = meshlet.vertexCount;
-            meshlet.vertices[meshlet.vertexCount++] = c;
-        }
-
-        meshlet.indices[meshlet.triangleCount * 3 + 0] = curr[a];
-        meshlet.indices[meshlet.triangleCount * 3 + 1] = curr[b];
-        meshlet.indices[meshlet.triangleCount * 3 + 2] = curr[c];
-        meshlet.triangleCount++;
-    }
-    if (meshlet.triangleCount)
-    {
-        m_meshlets.push_back(meshlet);
+        m_meshlets[i].triangleCount = (uint8_t)meshlets[i].triangle_count;
+        m_meshlets[i].vertexCount = (uint8_t)meshlets[i].vertex_count;
     }
 
     while (m_meshlets.size() % 32)

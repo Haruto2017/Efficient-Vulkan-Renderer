@@ -68,6 +68,8 @@ public:
 	std::vector<uint32_t> m_indices;
 	std::vector<Meshlet> m_meshlets;
 
+	// To Do: use meshlet_vertices & meshlet_indices buffers
+
 	bool rtxSupported;
 private:
 	void buildMeshlets();
