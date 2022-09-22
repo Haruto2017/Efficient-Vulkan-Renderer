@@ -24,6 +24,11 @@ layout(binding = 1) buffer readonly Meshlets
     Meshlet meshlets[];
 };
 
+in taskNV block 
+{
+    uint meshletIndices[32];
+};
+
 layout(location = 0) out vec3 fragColor[];
 
 // layout(location = 1)
@@ -40,23 +45,9 @@ uint hash(uint a)
     return a;
 }
 
-bool coneCull(vec4 cone, vec3 view)
-{
-    return dot(cone.xyz, view) > cone.w;
-}
-
 void main() {
-    uint mi = gl_WorkGroupID.x;
+    uint mi = meshletIndices[gl_WorkGroupID.x];
     uint ti = gl_LocalInvocationID.x;
-
-    if (coneCull(meshlets[mi].cone, vec3(0, 0, 1)))
-    {
-        if (ti == 0)
-        {
-            gl_PrimitiveCountNV = 0;
-        }
-        return;
-    }
 
     uint vertexCount = uint(meshlets[mi].vertexCount);
     uint triangleCount = uint(meshlets[mi].triangleCount);

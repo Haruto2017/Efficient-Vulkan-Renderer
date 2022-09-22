@@ -168,6 +168,11 @@ void Mesh::buildMeshlets()
     {
         m_meshlets.push_back(meshlet);
     }
+
+    while (m_meshlets.size() % 32)
+    {
+        m_meshlets.push_back(Meshlet());
+    }
 }
 
 float halfToFloat(uint16_t v)

@@ -39,7 +39,7 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     scissor.extent = swapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    int drawCount = 100;
+    int drawCount = 1;
 
     if (rtxEnabled && rtxSupported)
     {
@@ -49,7 +49,7 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
 
         vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, rtxUpdateTemplate, rtxPipelineLayout, 0, descriptors);
         for (int i = 0; i < drawCount; ++i)
-            vkCmdDrawMeshTasksNV(commandBuffer, uint32_t(meshes[0].m_meshlets.size()), 0);
+            vkCmdDrawMeshTasksNV(commandBuffer, uint32_t(meshes[0].m_meshlets.size() / 32), 0);
     }
     else
     {

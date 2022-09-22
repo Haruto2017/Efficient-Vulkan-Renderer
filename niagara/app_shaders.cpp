@@ -197,6 +197,7 @@ void renderApplication::createGenericGraphicsPipeline(Shaders shaders, VkPipelin
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
+    //rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT;
     rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
 
@@ -338,14 +339,19 @@ void renderApplication::createUpdateTemplate(Shaders shaders, VkDescriptorUpdate
 
 void renderApplication::createGraphicsPipeline() {
     bool rc = false;
-    std::vector<char> meshShaderCode;
     Shader meshShader = {};
+    Shader taskShader = {};
     if (rtxSupported)
     {
-        meshShaderCode = readFile("..\\compiledShader\\meshlet.mesh.spv");
+        std::vector<char> meshShaderCode = readFile("..\\compiledShader\\meshlet.mesh.spv");
         if (!createShader(meshShader, meshShaderCode))
         {
             throw std::runtime_error("failed to create mesh shader");
+        }
+        std::vector<char> taskShaderCode = readFile("..\\compiledShader\\meshlet.task.spv");
+        if (!createShader(taskShader, taskShaderCode))
+        {
+            throw std::runtime_error("failed to create task shader");
         }
     }
 
@@ -366,10 +372,10 @@ void renderApplication::createGraphicsPipeline() {
 
     if (rtxSupported)
     {
-        createSetLayout({ &meshShader, &fragShader }, rtxSetLayout);
-        createGenericGraphicsPipelineLayout({ &meshShader, &fragShader }, rtxPipelineLayout, rtxSetLayout);
-        createUpdateTemplate({ &meshShader, &fragShader }, rtxUpdateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxPipelineLayout);
-        createGenericGraphicsPipeline({ &meshShader, &fragShader }, rtxPipelineLayout, rtxGraphicsPipeline);
+        createSetLayout({ &taskShader, &meshShader, &fragShader }, rtxSetLayout);
+        createGenericGraphicsPipelineLayout({ &taskShader, &meshShader, &fragShader }, rtxPipelineLayout, rtxSetLayout);
+        createUpdateTemplate({ &taskShader, &meshShader, &fragShader }, rtxUpdateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxPipelineLayout);
+        createGenericGraphicsPipeline({ &taskShader, &meshShader, &fragShader }, rtxPipelineLayout, rtxGraphicsPipeline);
     }
     createSetLayout({ &vertShader, &fragShader }, setLayout);
     createGenericGraphicsPipelineLayout({ &vertShader, &fragShader }, pipelineLayout, setLayout);
@@ -381,5 +387,6 @@ void renderApplication::createGraphicsPipeline() {
     if (rtxSupported)
     {
         destroyShader(meshShader);
+        destroyShader(taskShader);
     }
 }
