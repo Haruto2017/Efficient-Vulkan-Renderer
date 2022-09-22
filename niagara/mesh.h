@@ -73,7 +73,7 @@ public:
 	bool rtxSupported;
 private:
 	void buildMeshlets();
-	void buildMeshletCones();
+	//void buildMeshletCones();
 };
 
 #endif

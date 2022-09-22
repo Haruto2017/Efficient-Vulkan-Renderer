@@ -126,6 +126,12 @@ void Mesh::buildMeshlets()
 
         m_meshlets[i].triangleCount = (uint8_t)meshlets[i].triangle_count;
         m_meshlets[i].vertexCount = (uint8_t)meshlets[i].vertex_count;
+
+        meshopt_Bounds bounds = meshopt_computeMeshletBounds(meshlet_vertices.data() + vert_offset, meshlet_triangles.data() + tri_offset, meshlets[i].triangle_count, (const float*)m_vertices.data(), m_vertices.size(), sizeof(Vertex));
+        m_meshlets[i].cone[0] = bounds.cone_axis[0];
+        m_meshlets[i].cone[1] = bounds.cone_axis[1];
+        m_meshlets[i].cone[2] = bounds.cone_axis[2];
+        m_meshlets[i].cone[3] = bounds.cone_cutoff;
     }
 
     while (m_meshlets.size() % 32)
@@ -134,81 +140,81 @@ void Mesh::buildMeshlets()
     }
 }
 
-void Mesh::buildMeshletCones()
-{
-    for (Meshlet& meshlet : m_meshlets)
-    {
-        std::vector<glm::vec3> normals(MESHLETTRICOUNT);
-
-        for (uint32_t i = 0; i < meshlet.triangleCount; ++i)
-        {
-            uint32_t a = meshlet.indices[i * 3 + 0];
-            uint32_t b = meshlet.indices[i * 3 + 1];
-            uint32_t c = meshlet.indices[i * 3 + 2];
-
-            const Vertex& v0 = m_vertices[meshlet.vertices[a]];
-            const Vertex& v1 = m_vertices[meshlet.vertices[b]];
-            const Vertex& v2 = m_vertices[meshlet.vertices[c]];
-
-            glm::vec3 p0(v0.px, v0.py, v0.pz);
-            glm::vec3 p1(v1.px, v1.py, v1.pz);
-            glm::vec3 p2(v2.px, v2.py, v2.pz);
-
-            glm::vec3 p10 = p1 - p0;
-            glm::vec3 p20 = p2 - p0;
-            glm::vec3 n = glm::cross(p10, p20); // watch for the order
-
-            // check for degenerate triangles
-            if (n.length() > 0.f)
-            {
-                normals[i] = glm::normalize(n);
-            }
-            else
-            {
-                normals[i] = glm::vec3(0.f);
-            }
-        }
-
-        glm::vec3 avgnormal(0.f);
-        
-        for (uint32_t i = 0; i < meshlet.triangleCount; ++i)
-        {
-            avgnormal += normals[i];
-        }
-
-        if (avgnormal.length() > 0.f)
-        {
-            avgnormal = glm::normalize(avgnormal);
-        }
-        else
-        {
-            avgnormal = glm::vec3(1.f, 0.f, 0.f);
-        }
-
-        float mindp = 1.f;
-
-        for (uint32_t i = 0; i < meshlet.triangleCount; ++i)
-        {
-            float dp = glm::dot(normals[i], avgnormal);
-
-            mindp = std::min(dp, mindp);
-        }
-
-        // Backfacing cone should have an angle betweeen avg normal & view dir less than (-a + 90 degrees)
-        // such that even the farthest normal direction from the view dir in the meshlet is backfacing
-        // Here we store cos value only instead of angle degrees
-        // Then in shader, the greater the cos value is, the less the angle is in between
-        // So, dot(avg normal, view dir) > cos(-a + 90) means the meshlet is backfacing
-        // given cos(a) = mindp
-        // we have cos(-a + 90) = sin(a) = sqrt(1 - cos(a)^2)
-        float conew = mindp <= 0.f ? 1.f : sqrtf(1 - mindp * mindp);
-
-        meshlet.cone[0] = avgnormal.x;
-        meshlet.cone[1] = avgnormal.y;
-        meshlet.cone[2] = avgnormal.z;
-        meshlet.cone[3] = conew;
-    }
-}
+//void Mesh::buildMeshletCones()
+//{
+//    for (Meshlet& meshlet : m_meshlets)
+//    {
+//        std::vector<glm::vec3> normals(MESHLETTRICOUNT);
+//
+//        for (uint32_t i = 0; i < meshlet.triangleCount; ++i)
+//        {
+//            uint32_t a = meshlet.indices[i * 3 + 0];
+//            uint32_t b = meshlet.indices[i * 3 + 1];
+//            uint32_t c = meshlet.indices[i * 3 + 2];
+//
+//            const Vertex& v0 = m_vertices[meshlet.vertices[a]];
+//            const Vertex& v1 = m_vertices[meshlet.vertices[b]];
+//            const Vertex& v2 = m_vertices[meshlet.vertices[c]];
+//
+//            glm::vec3 p0(v0.px, v0.py, v0.pz);
+//            glm::vec3 p1(v1.px, v1.py, v1.pz);
+//            glm::vec3 p2(v2.px, v2.py, v2.pz);
+//
+//            glm::vec3 p10 = p1 - p0;
+//            glm::vec3 p20 = p2 - p0;
+//            glm::vec3 n = glm::cross(p10, p20); // watch for the order
+//
+//            // check for degenerate triangles
+//            if (n.length() > 0.f)
+//            {
+//                normals[i] = glm::normalize(n);
+//            }
+//            else
+//            {
+//                normals[i] = glm::vec3(0.f);
+//            }
+//        }
+//
+//        glm::vec3 avgnormal(0.f);
+//        
+//        for (uint32_t i = 0; i < meshlet.triangleCount; ++i)
+//        {
+//            avgnormal += normals[i];
+//        }
+//
+//        if (avgnormal.length() > 0.f)
+//        {
+//            avgnormal = glm::normalize(avgnormal);
+//        }
+//        else
+//        {
+//            avgnormal = glm::vec3(1.f, 0.f, 0.f);
+//        }
+//
+//        float mindp = 1.f;
+//
+//        for (uint32_t i = 0; i < meshlet.triangleCount; ++i)
+//        {
+//            float dp = glm::dot(normals[i], avgnormal);
+//
+//            mindp = std::min(dp, mindp);
+//        }
+//
+//        // Backfacing cone should have an angle betweeen avg normal & view dir less than (-a + 90 degrees)
+//        // such that even the farthest normal direction from the view dir in the meshlet is backfacing
+//        // Here we store cos value only instead of angle degrees
+//        // Then in shader, the greater the cos value is, the less the angle is in between
+//        // So, dot(avg normal, view dir) > cos(-a + 90) means the meshlet is backfacing
+//        // given cos(a) = mindp
+//        // we have cos(-a + 90) = sin(a) = sqrt(1 - cos(a)^2)
+//        float conew = mindp <= 0.f ? 1.f : sqrtf(1 - mindp * mindp);
+//
+//        meshlet.cone[0] = avgnormal.x;
+//        meshlet.cone[1] = avgnormal.y;
+//        meshlet.cone[2] = avgnormal.z;
+//        meshlet.cone[3] = conew;
+//    }
+//}
 
 void Mesh::generateRenderData(VkDevice device, VkCommandBuffer commandBuffer, VkQueue queue, const VkPhysicalDeviceMemoryProperties& memoryProperties)
 {
@@ -224,7 +230,7 @@ void Mesh::generateRenderData(VkDevice device, VkCommandBuffer commandBuffer, Vk
     if (rtxSupported)
     {
         buildMeshlets();
-        buildMeshletCones();
+        //buildMeshletCones();
         createBuffer(mb, device, memoryProperties, sizeof(m_meshlets[0]) * m_meshlets.size(), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
     //memcpy(mb.data, m_meshlets.data(), sizeof(m_meshlets[0]) * m_meshlets.size());
