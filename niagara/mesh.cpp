@@ -52,9 +52,9 @@ void Mesh::loadMesh(std::string objpath)
                 tinyobj::real_t vx = attrib.vertices[3 * size_t(idx.vertex_index) + 0];
                 tinyobj::real_t vy = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
                 tinyobj::real_t vz = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
-                vertices[(uint64_t)curr_tri * 3 + v].px = meshopt_quantizeHalf(vx);
-                vertices[(uint64_t)curr_tri * 3 + v].py = meshopt_quantizeHalf(vy);
-                vertices[(uint64_t)curr_tri * 3 + v].pz = meshopt_quantizeHalf(vz);
+                vertices[(uint64_t)curr_tri * 3 + v].px = vx;
+                vertices[(uint64_t)curr_tri * 3 + v].py = vy;
+                vertices[(uint64_t)curr_tri * 3 + v].pz = vz;
 
                 // Check if `normal_index` is zero or positive. negative = no normal data
                 if (idx.normal_index >= 0) {
@@ -175,33 +175,8 @@ void Mesh::buildMeshlets()
     }
 }
 
-float halfToFloat(uint16_t v)
-{
-    uint16_t sign = v >> 15;
-    uint16_t exp = (v >> 10) & 31;
-    uint16_t mant = v & 1023;
-
-    assert(exp != 31);
-
-    if (exp == 0)
-    {
-        assert(mant == 0);
-        return 0.f;
-    }
-    else
-    {
-        return (sign ? -1.f : 1.f) * ldexpf(float(mant + 1024) / 1024.f, exp - 15);
-    }
-}
-
 void Mesh::buildMeshletCones()
 {
-    uint16_t pih = meshopt_quantizeHalf(3.1415926f);
-    float pif = halfToFloat(pih);
-
-    uint16_t npih = meshopt_quantizeHalf(-3.1415926f);
-    float npif = halfToFloat(npih);
-
     for (Meshlet& meshlet : m_meshlets)
     {
         std::vector<glm::vec3> normals(MESHLETTRICOUNT);
@@ -216,9 +191,9 @@ void Mesh::buildMeshletCones()
             const Vertex& v1 = m_vertices[meshlet.vertices[b]];
             const Vertex& v2 = m_vertices[meshlet.vertices[c]];
 
-            glm::vec3 p0(halfToFloat(v0.px), halfToFloat(v0.py), halfToFloat(v0.pz));
-            glm::vec3 p1(halfToFloat(v1.px), halfToFloat(v1.py), halfToFloat(v1.pz));
-            glm::vec3 p2(halfToFloat(v2.px), halfToFloat(v2.py), halfToFloat(v2.pz));
+            glm::vec3 p0(v0.px, v0.py, v0.pz);
+            glm::vec3 p1(v1.px, v1.py, v1.pz);
+            glm::vec3 p2(v2.px, v2.py, v2.pz);
 
             glm::vec3 p10 = p1 - p0;
             glm::vec3 p20 = p2 - p0;

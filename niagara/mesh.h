@@ -9,7 +9,7 @@
 // a simple & generic vertex layout
 struct Vertex
 {
-	uint16_t px, py, pz, pw;
+	float px, py, pz;
 	uint8_t nx, ny, nz, nw;
 	//glm::vec3 color;
 	uint16_t tu, tv;
@@ -27,7 +27,7 @@ struct Vertex
 		std::array<VkVertexInputAttributeDescription, 3> attributeDescriptions{};
 		attributeDescriptions[0].binding = 0;
 		attributeDescriptions[0].location = 0;
-		attributeDescriptions[0].format = VK_FORMAT_R16G16B16A16_SFLOAT;
+		attributeDescriptions[0].format = VK_FORMAT_R32G32B32_SFLOAT;
 		attributeDescriptions[0].offset = offsetof(Vertex, px);
 
 		attributeDescriptions[1].binding = 0;
