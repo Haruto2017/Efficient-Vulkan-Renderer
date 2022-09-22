@@ -75,38 +75,11 @@ void main() {
     #endif
     }
 
-    // for (uint i = ti; i < triangleCount; i += 32)
-    // {
-    //     uint vi0 = meshlets[mi].vertices[uint(meshlets[mi].indices[3*i + 0])];
-    //     uint vi1 = meshlets[mi].vertices[uint(meshlets[mi].indices[3*i + 1])];
-    //     uint vi2 = meshlets[mi].vertices[uint(meshlets[mi].indices[3*i + 2])];
+    uint indexGroupCount = (indexCount + 3) / 4;
 
-    //     vec3 inPosition0 = vec3(vertices[vi0].vx, vertices[vi0].vy, vertices[vi0].vz);
-    //     vec3 inPosition1 = vec3(vertices[vi1].vx, vertices[vi1].vy, vertices[vi1].vz);
-    //     vec3 inPosition2 = vec3(vertices[vi2].vx, vertices[vi2].vy, vertices[vi2].vz);
-        
-    //     // Code below this works fine, proving that we are in the same warp (SIMD) and all vertices are already filled
-
-    //     // uint vi0 = uint(meshlets[mi].indices[3*i + 0]);
-    //     // uint vi1 = uint(meshlets[mi].indices[3*i + 1]);
-    //     // uint vi2 = uint(meshlets[mi].indices[3*i + 2]);
-
-    //     // vec3 inPosition0 = gl_MeshVerticesNV[vi0].gl_Position.xyz;
-    //     // vec3 inPosition1 = gl_MeshVerticesNV[vi1].gl_Position.xyz;
-    //     // vec3 inPosition2 = gl_MeshVerticesNV[vi2].gl_Position.xyz;
-
-    //     vec3 normal = normalize(cross(inPosition1 - inPosition0, inPosition2 - inPosition0));
-
-    //     triangleNormal[i] = normal;
-    // }
-
-    //uint indexChunkCount = (indexCount + 3) / 4;
-
-    for (uint i = ti; i < indexCount; i += 32)
+    for (uint i = ti; i < indexGroupCount; i += 32)
     {
-        gl_PrimitiveIndicesNV[i] = uint(meshlets[mi].indices[i]);
-
-        //writePackedPrimitiveIndices4x8NV(i * 4, meshlets[mi].indicesPacked[i]);
+        writePackedPrimitiveIndices4x8NV(i * 4, meshlets[mi].indicesPacked[i]);
     }
 
     if (ti == 0)
