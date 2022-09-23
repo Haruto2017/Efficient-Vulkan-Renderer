@@ -84,7 +84,7 @@ private:
     double frameCPUAvg;
     double frameGPUAvg;
 
-    uint32_t drawCount = 1;
+    uint32_t drawCount = 100;
 
     bool rtxSupported = false;
     bool rtxEnabled = false;
@@ -123,7 +123,7 @@ private:
 
     void createRenderPass();
 
-    void createGenericGraphicsPipelineLayout(Shaders shaders, VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout);
+    void createGenericGraphicsPipelineLayout(Shaders shaders, VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout, size_t pushConstantSize);
 
     void createGenericGraphicsPipeline(Shaders shaders, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline);
 

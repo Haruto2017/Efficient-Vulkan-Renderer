@@ -39,6 +39,16 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     scissor.extent = swapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
+    std::vector<MeshDraw> draws(drawCount);
+
+    for (uint32_t i = 0; i < drawCount; ++i)
+    {
+        draws[i].offset[0] = float(i % 10) / 10.f + 0.5f / 10.f;
+        draws[i].offset[1] = float(i / 10) / 10.f + 0.5f / 10.f;
+        draws[i].scale[0] = 1 / 10.f;
+        draws[i].scale[1] = 1 / 10.f;
+    }
+
     if (rtxEnabled && rtxSupported)
     {
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxGraphicsPipeline);
@@ -47,7 +57,11 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
 
         vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, rtxUpdateTemplate, rtxPipelineLayout, 0, descriptors);
         for (int i = 0; i < drawCount; ++i)
+        {
+            MeshDraw& draw = draws[i];
+            vkCmdPushConstants(commandBuffer, rtxPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(draw), &draw);
             vkCmdDrawMeshTasksNV(commandBuffer, uint32_t(meshes[0].m_meshlets.size() / 32), 0);
+        }
     }
     else
     {
@@ -62,7 +76,11 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
         //vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, &dummyOffset);
         vkCmdBindIndexBuffer(commandBuffer, meshes[0].ib.buffer, dummyOffset, VK_INDEX_TYPE_UINT32);
         for (int i = 0; i < drawCount; ++i)
+        {
+            MeshDraw& draw = draws[i];
+            vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(draw), &draw);
             vkCmdDrawIndexed(commandBuffer, meshes[0].m_indices.size(), 1, 0, 0, 0);
+        }
     }
 
     vkCmdEndRenderPass(commandBuffer);

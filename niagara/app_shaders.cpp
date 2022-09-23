@@ -150,13 +150,24 @@ std::vector<char> renderApplication::readFile(const std::string& filename) {
     return buffer;
 }
 
-void renderApplication::createGenericGraphicsPipelineLayout(Shaders shaders, VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout)
+void renderApplication::createGenericGraphicsPipelineLayout(Shaders shaders, VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout, size_t pushConstantSize)
 {
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutInfo.setLayoutCount = 1;
     pipelineLayoutInfo.pSetLayouts = &inSetLayout;
-    pipelineLayoutInfo.pushConstantRangeCount = 0;
+
+    VkPushConstantRange pushConstantRange = {};
+
+    if (pushConstantSize)
+    {
+        pushConstantRange.stageFlags = VK_SHADER_STAGE_ALL;
+        pushConstantRange.offset = 0;
+        pushConstantRange.size = pushConstantSize;
+
+        pipelineLayoutInfo.pushConstantRangeCount = 1;
+        pipelineLayoutInfo.pPushConstantRanges = &pushConstantRange;
+    }
 
     if (vkCreatePipelineLayout(device, &pipelineLayoutInfo, nullptr, &outPipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create pipeline layout!");
@@ -377,12 +388,12 @@ void renderApplication::createGraphicsPipeline() {
     if (rtxSupported)
     {
         createSetLayout({ &taskShader, &meshShader, &fragShader }, rtxSetLayout);
-        createGenericGraphicsPipelineLayout({ &taskShader, &meshShader, &fragShader }, rtxPipelineLayout, rtxSetLayout);
+        createGenericGraphicsPipelineLayout({ &taskShader, &meshShader, &fragShader }, rtxPipelineLayout, rtxSetLayout, sizeof(MeshDraw));
         createUpdateTemplate({ &taskShader, &meshShader, &fragShader }, rtxUpdateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxPipelineLayout);
         createGenericGraphicsPipeline({ &taskShader, &meshShader, &fragShader }, rtxPipelineLayout, rtxGraphicsPipeline);
     }
     createSetLayout({ &vertShader, &fragShader }, setLayout);
-    createGenericGraphicsPipelineLayout({ &vertShader, &fragShader }, pipelineLayout, setLayout);
+    createGenericGraphicsPipelineLayout({ &vertShader, &fragShader }, pipelineLayout, setLayout, sizeof(MeshDraw));
     createUpdateTemplate({ &vertShader, &fragShader }, updateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout);
     createGenericGraphicsPipeline({ &vertShader, &fragShader }, pipelineLayout, graphicsPipeline);
 

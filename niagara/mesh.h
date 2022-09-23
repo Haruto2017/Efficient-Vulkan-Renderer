@@ -52,6 +52,12 @@ struct alignas(16) Meshlet
 	uint8_t vertexCount;
 };
 
+struct alignas(16) MeshDraw
+{
+	float offset[2];
+	float scale[2];
+};
+
 class Mesh
 {
 public:

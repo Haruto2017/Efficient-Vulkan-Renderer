@@ -14,6 +14,11 @@
 layout(local_size_x = 32, local_size_y = 1, local_size_x = 1) in;
 layout(triangles, max_vertices = 64, max_primitives = MESHLETTRICOUNT) out;
 
+layout(push_constant) uniform block
+{
+    MeshDraw meshDraw;
+};
+
 layout(binding = 0) buffer readonly Vertices
 {
     Vertex vertices[];
@@ -76,7 +81,8 @@ void main() {
         vec3 inNormal = vec3(int(v.nx), int(v.ny), int(v.nz)) / 127.0 - 1.0;
         vec2 inTexCoord  = vec2(v.tu, v.tv);
 
-        gl_MeshVerticesNV[i].gl_Position = vec4(inPosition + vec3(0, 0, 0.5), 1.0);
+        gl_MeshVerticesNV[i].gl_Position = vec4((inPosition * vec3(meshDraw.scale, 1) + vec3(meshDraw.offset, 0))
+         * vec3(2, 2, 0.5) + vec3(-1, -1, 0.5), 1.0);
         fragColor[i] = normalize(inNormal) * 0.5 + 0.5;
 
     #if DEBUG
