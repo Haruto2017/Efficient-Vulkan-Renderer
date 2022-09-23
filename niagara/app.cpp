@@ -92,16 +92,12 @@ void renderApplication::cleanup() {
 
     if (rtxSupported)
     {
-        vkDestroyDescriptorUpdateTemplate(device, rtxUpdateTemplate, nullptr);
-        vkDestroyDescriptorSetLayout(device, rtxSetLayout, nullptr);
         vkDestroyPipeline(device, rtxGraphicsPipeline, nullptr);
-        vkDestroyPipelineLayout(device, rtxPipelineLayout, nullptr);
+        destroyProgram(rtxGraphicsProgram);
     }
 
-    vkDestroyDescriptorUpdateTemplate(device, updateTemplate, nullptr);
-    vkDestroyDescriptorSetLayout(device, setLayout, nullptr);
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
-    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+    destroyProgram(graphicsProgram);
 
     vkDestroyRenderPass(device, renderPass, nullptr);
 

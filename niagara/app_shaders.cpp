@@ -105,6 +105,11 @@ static void parseShader(Shader& shader, const uint32_t* code, uint32_t codeSize)
 
             shader.storageBufferMask |= 1 << id.binding;
         }
+
+        if (id.kind == Id::Variable && id.storageClass == SpvStorageClassPushConstant)
+        {
+            shader.usesPushConstant = true;
+        }
     }
 }
 
@@ -150,7 +155,7 @@ std::vector<char> renderApplication::readFile(const std::string& filename) {
     return buffer;
 }
 
-void renderApplication::createGenericGraphicsPipelineLayout(Shaders shaders, VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout, size_t pushConstantSize)
+void renderApplication::createGenericGraphicsPipelineLayout(Shaders shaders, VkShaderStageFlags pushConstantStages, VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout, size_t pushConstantSize)
 {
     VkPipelineLayoutCreateInfo pipelineLayoutInfo{};
     pipelineLayoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -161,7 +166,7 @@ void renderApplication::createGenericGraphicsPipelineLayout(Shaders shaders, VkP
 
     if (pushConstantSize)
     {
-        pushConstantRange.stageFlags = VK_SHADER_STAGE_ALL;
+        pushConstantRange.stageFlags = pushConstantStages;
         pushConstantRange.offset = 0;
         pushConstantRange.size = pushConstantSize;
 
@@ -264,6 +269,29 @@ void renderApplication::createGenericGraphicsPipeline(Shaders shaders, VkPipelin
     if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &outPipeline) != VK_SUCCESS) {
         throw std::runtime_error("failed to create graphics pipeline!");
     }
+}
+
+void renderApplication::createGenericProgram(VkPipelineBindPoint bindPoint, Shaders shaders, size_t pushConstantSize, Program& outProgram)
+{
+    VkShaderStageFlags pushConstantStages = 0;
+    for (const Shader* shader : shaders)
+    {
+        if (shader->usesPushConstant)
+        {
+            pushConstantStages |= shader->stage;
+        }
+    }
+    outProgram.pushConstantStages = pushConstantStages;
+    createSetLayout(shaders, outProgram.setLayout);
+    createGenericGraphicsPipelineLayout(shaders, pushConstantStages ,outProgram.layout, outProgram.setLayout, pushConstantSize);
+    createUpdateTemplate(shaders, outProgram.updateTemplate, bindPoint, outProgram.layout);
+}
+
+void renderApplication::destroyProgram(const Program& program)
+{
+    vkDestroyDescriptorUpdateTemplate(device, program.updateTemplate, nullptr);
+    vkDestroyDescriptorSetLayout(device, program.setLayout, nullptr);
+    vkDestroyPipelineLayout(device, program.layout, nullptr);
 }
 
 void renderApplication::createSetLayout(Shaders shaders, VkDescriptorSetLayout& outLayout)
@@ -387,15 +415,11 @@ void renderApplication::createGraphicsPipeline() {
 
     if (rtxSupported)
     {
-        createSetLayout({ &taskShader, &meshShader, &fragShader }, rtxSetLayout);
-        createGenericGraphicsPipelineLayout({ &taskShader, &meshShader, &fragShader }, rtxPipelineLayout, rtxSetLayout, sizeof(MeshDraw));
-        createUpdateTemplate({ &taskShader, &meshShader, &fragShader }, rtxUpdateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxPipelineLayout);
-        createGenericGraphicsPipeline({ &taskShader, &meshShader, &fragShader }, rtxPipelineLayout, rtxGraphicsPipeline);
+        createGenericProgram(VK_PIPELINE_BIND_POINT_GRAPHICS, { &taskShader, &meshShader, &fragShader }, sizeof(MeshDraw), rtxGraphicsProgram);
+        createGenericGraphicsPipeline({ &taskShader, &meshShader, &fragShader }, rtxGraphicsProgram.layout, rtxGraphicsPipeline);
     }
-    createSetLayout({ &vertShader, &fragShader }, setLayout);
-    createGenericGraphicsPipelineLayout({ &vertShader, &fragShader }, pipelineLayout, setLayout, sizeof(MeshDraw));
-    createUpdateTemplate({ &vertShader, &fragShader }, updateTemplate, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout);
-    createGenericGraphicsPipeline({ &vertShader, &fragShader }, pipelineLayout, graphicsPipeline);
+    createGenericProgram(VK_PIPELINE_BIND_POINT_GRAPHICS, { &vertShader, &fragShader }, sizeof(MeshDraw), graphicsProgram);
+    createGenericGraphicsPipeline({ &vertShader, &fragShader }, graphicsProgram.layout, graphicsPipeline);
 
     destroyShader(fragShader);
     destroyShader(vertShader);

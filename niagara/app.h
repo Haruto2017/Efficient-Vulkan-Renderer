@@ -53,15 +53,11 @@ private:
 
     VkRenderPass renderPass;
 
-    VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
-    VkDescriptorSetLayout setLayout;
-    VkDescriptorUpdateTemplate updateTemplate;
+    Program graphicsProgram;
 
-    VkPipelineLayout rtxPipelineLayout;
     VkPipeline rtxGraphicsPipeline;
-    VkDescriptorSetLayout rtxSetLayout;
-    VkDescriptorUpdateTemplate rtxUpdateTemplate;
+    Program rtxGraphicsProgram;
 
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
@@ -123,10 +119,14 @@ private:
 
     void createRenderPass();
 
-    void createGenericGraphicsPipelineLayout(Shaders shaders, VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout, size_t pushConstantSize);
+    void createGenericGraphicsPipelineLayout(Shaders shaders, VkShaderStageFlags pushConstantStages, VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout, size_t pushConstantSize);
 
     void createGenericGraphicsPipeline(Shaders shaders, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline);
+    
+    void createGenericProgram(VkPipelineBindPoint bindPoint, Shaders shaders, size_t pushConstantSize, Program& outProgram);
 
+    void destroyProgram(const Program& program);
+    
     void createGraphicsPipeline();
 
     void createSetLayout(Shaders shaders, VkDescriptorSetLayout& outLayout);

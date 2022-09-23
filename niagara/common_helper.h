@@ -60,6 +60,17 @@ struct Shader
     VkShaderModule module;
     VkShaderStageFlagBits stage;
     uint32_t storageBufferMask;
+
+    bool usesPushConstant;
+};
+
+struct Program
+{
+    VkPipelineLayout layout;
+    VkDescriptorUpdateTemplate updateTemplate;
+    VkDescriptorSetLayout setLayout;
+
+    VkShaderStageFlags pushConstantStages;
 };
 
 using Shaders = std::initializer_list<const Shader*>;

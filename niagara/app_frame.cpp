@@ -55,11 +55,11 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
 
         DescriptorInfo descriptors[] = {meshes[0].vb.buffer, meshes[0].mb.buffer, meshes[0].mdb.buffer};
 
-        vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, rtxUpdateTemplate, rtxPipelineLayout, 0, descriptors);
+        vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, rtxGraphicsProgram.updateTemplate, rtxGraphicsProgram.layout, 0, descriptors);
         for (int i = 0; i < drawCount; ++i)
         {
             MeshDraw& draw = draws[i];
-            vkCmdPushConstants(commandBuffer, rtxPipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(draw), &draw);
+            vkCmdPushConstants(commandBuffer, rtxGraphicsProgram.layout, rtxGraphicsProgram.pushConstantStages, 0, sizeof(draw), &draw);
             vkCmdDrawMeshTasksNV(commandBuffer, uint32_t(meshes[0].m_meshlets.size() / 32), 0);
         }
     }
@@ -69,7 +69,7 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
 
         DescriptorInfo descriptors[] = { meshes[0].vb.buffer };
 
-        vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, updateTemplate, pipelineLayout, 0, descriptors);
+        vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, graphicsProgram.updateTemplate, graphicsProgram.layout, 0, descriptors);
 
         // VkBuffer vertexBuffers[] = { meshes[0].vb.buffer };
         VkDeviceSize dummyOffset = 0;
@@ -78,7 +78,7 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
         for (int i = 0; i < drawCount; ++i)
         {
             MeshDraw& draw = draws[i];
-            vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_ALL, 0, sizeof(draw), &draw);
+            vkCmdPushConstants(commandBuffer, graphicsProgram.layout, graphicsProgram.pushConstantStages, 0, sizeof(draw), &draw);
             vkCmdDrawIndexed(commandBuffer, meshes[0].m_indices.size(), 1, 0, 0, 0);
         }
     }
