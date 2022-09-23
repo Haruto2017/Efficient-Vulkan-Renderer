@@ -48,8 +48,10 @@ private:
     std::vector<VkImage> swapChainImages;
     VkFormat swapChainImageFormat;
     VkExtent2D swapChainExtent;
-    std::vector<VkImageView> swapChainImageViews;
-    std::vector<VkFramebuffer> swapChainFramebuffers;
+
+    Image colorTarget;
+    Image depthTarget;
+    VkFramebuffer targetFB;
 
     VkRenderPass renderPass;
 
@@ -115,8 +117,6 @@ private:
 
     void createSwapChain();
 
-    void createImageViews();
-
     void createRenderPass();
 
     void createGenericGraphicsPipelineLayout(Shaders shaders, VkShaderStageFlags pushConstantStages, VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout, size_t pushConstantSize);
@@ -132,8 +132,6 @@ private:
     void createSetLayout(Shaders shaders, VkDescriptorSetLayout& outLayout);
 
     void createUpdateTemplate(Shaders shaders, VkDescriptorUpdateTemplate& outTemplate, VkPipelineBindPoint bindPoint, VkPipelineLayout inLayout);
-
-    void createFramebuffers();
 
     void createCommandPool();
 

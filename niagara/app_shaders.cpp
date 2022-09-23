@@ -250,6 +250,11 @@ void renderApplication::createGenericGraphicsPipeline(Shaders shaders, VkPipelin
     dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStates.size());
     dynamicState.pDynamicStates = dynamicStates.data();
 
+    VkPipelineDepthStencilStateCreateInfo depthStencilState = { VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
+    depthStencilState.depthTestEnable = true;
+    depthStencilState.depthWriteEnable = true;
+    depthStencilState.depthCompareOp = VK_COMPARE_OP_GREATER;
+
     VkGraphicsPipelineCreateInfo pipelineInfo{};
     pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
     pipelineInfo.stageCount = uint32_t(stages.size());
@@ -261,6 +266,7 @@ void renderApplication::createGenericGraphicsPipeline(Shaders shaders, VkPipelin
     pipelineInfo.pMultisampleState = &multisampling;
     pipelineInfo.pColorBlendState = &colorBlending;
     pipelineInfo.pDynamicState = &dynamicState;
+    pipelineInfo.pDepthStencilState = &depthStencilState;
     pipelineInfo.layout = inPipelineLayout;
     pipelineInfo.renderPass = renderPass;
     pipelineInfo.subpass = 0;

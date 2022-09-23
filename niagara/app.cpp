@@ -52,10 +52,8 @@ void renderApplication::initVulkan() {
     pickPhysicalDevice();
     createLogicalDevice();
     createSwapChain();
-    createImageViews();
     createRenderPass();
     createGraphicsPipeline();
-    createFramebuffers();
     createCommandPool();
     createCommandBuffers();
     createSyncObjects();
@@ -87,6 +85,10 @@ void renderApplication::cleanup() {
     {
         meshes[i].destroyRenderData(device);
     }
+
+    destroyImage(colorTarget, device);
+    destroyImage(depthTarget, device);
+    vkDestroyFramebuffer(device, targetFB, 0);
 
     cleanupSwapChain();
 

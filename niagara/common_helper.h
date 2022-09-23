@@ -10,6 +10,13 @@ struct Buffer
 	size_t size;
 };
 
+struct Image
+{
+    VkImage image;
+    VkImageView imageView;
+    VkDeviceMemory memory;
+};
+
 struct QueueFamilyIndices {
     std::optional<uint32_t> graphicsFamily;
     std::optional<uint32_t> presentFamily;
@@ -94,7 +101,15 @@ void uploadBuffer(VkDevice device, VkCommandBuffer commandBuffer, VkQueue queue,
 
 void destroyBuffer(const Buffer& buffer, VkDevice device);
 
-VkImageMemoryBarrier imageBarrier(VkImage image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout);
+VkImageView createImageView(VkDevice device, VkImage image, VkFormat format);
+
+VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass renderPass, VkImageView colorView, VkImageView depthView, uint32_t width, uint32_t height);
+
+void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProperties, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage);
+
+void destroyImage(const Image& image, VkDevice device);
+
+VkImageMemoryBarrier imageBarrier(VkImage image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageAspectFlags imageAspectMask = VK_IMAGE_ASPECT_COLOR_BIT);
 
 VkBufferMemoryBarrier bufferBarrier(VkBuffer buffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask);
 

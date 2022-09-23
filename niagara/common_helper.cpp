@@ -89,7 +89,105 @@ void destroyBuffer(const Buffer& buffer, VkDevice device)
 	vkDestroyBuffer(device, buffer.buffer, 0);
 }
 
-VkImageMemoryBarrier imageBarrier(VkImage image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout)
+VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass renderPass, VkImageView colorView, VkImageView depthView, uint32_t width, uint32_t height)
+{
+	VkImageView attachments[] = {
+		colorView,
+		depthView
+	};
+
+	VkFramebufferCreateInfo framebufferInfo{};
+	framebufferInfo.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO;
+	framebufferInfo.renderPass = renderPass;
+	framebufferInfo.attachmentCount = sizeof(attachments) / sizeof(attachments[0]);
+	framebufferInfo.pAttachments = attachments;
+	framebufferInfo.width = width;
+	framebufferInfo.height = height;
+	framebufferInfo.layers = 1;
+
+	VkFramebuffer frameBuffer = 0;
+
+	if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &frameBuffer) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create framebuffer!");
+	}
+	return frameBuffer; 
+}
+
+VkImageView createImageView(VkDevice device, VkImage image, VkFormat format)
+{
+	VkImageAspectFlags aspectMask = (format == VK_FORMAT_D32_SFLOAT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
+
+	VkImageViewCreateInfo viewCreateInfo{};
+	viewCreateInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+	viewCreateInfo.image = image;
+	viewCreateInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
+	viewCreateInfo.format = format;
+	viewCreateInfo.components.r = VK_COMPONENT_SWIZZLE_IDENTITY;
+	viewCreateInfo.components.g = VK_COMPONENT_SWIZZLE_IDENTITY;
+	viewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
+	viewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
+	viewCreateInfo.subresourceRange.aspectMask = aspectMask;
+	viewCreateInfo.subresourceRange.baseMipLevel = 0;
+	viewCreateInfo.subresourceRange.levelCount = 1;
+	viewCreateInfo.subresourceRange.baseArrayLayer = 0;
+	viewCreateInfo.subresourceRange.layerCount = 1;
+
+	VkImageView imageView = 0;
+	if (vkCreateImageView(device, &viewCreateInfo, nullptr, &imageView) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create image view!");
+	}
+	return imageView;
+}
+
+void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProperties, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage)
+{
+	VkImageCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
+	createInfo.imageType = VK_IMAGE_TYPE_2D;
+	createInfo.format = format;
+	createInfo.extent = { width, height, 1 };
+	createInfo.mipLevels = 1;
+	createInfo.arrayLayers = 1;
+	createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
+	createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
+	createInfo.usage = usage;
+	createInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+
+	VkImage image = 0;
+	if (vkCreateImage(device, &createInfo, 0, &image) != VK_SUCCESS)
+	{
+		throw std::runtime_error("can't create image");
+	}
+
+	VkMemoryRequirements memoryRequirements;
+	vkGetImageMemoryRequirements(device, image, &memoryRequirements);
+
+	uint32_t memoryTypeIndex = findMemoryType(memoryProperties, memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+	VkDeviceMemory bufferMemory;
+	VkMemoryAllocateInfo allocInfo{};
+	allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
+	allocInfo.allocationSize = memoryRequirements.size;
+	allocInfo.memoryTypeIndex = memoryTypeIndex;
+	if (vkAllocateMemory(device, &allocInfo, nullptr, &bufferMemory) != VK_SUCCESS) {
+		throw std::runtime_error("failed to allocate vertex buffer memory!");
+	}
+
+	vkBindImageMemory(device, image, bufferMemory, 0);
+
+	result.image = image;
+	result.imageView = createImageView(device, image, format);
+	result.memory = bufferMemory;
+}
+
+void destroyImage(const Image& image, VkDevice device)
+{
+	vkFreeMemory(device, image.memory, 0);
+	vkDestroyImage(device, image.image, 0);
+	vkDestroyImageView(device, image.imageView, 0);
+}
+
+
+VkImageMemoryBarrier imageBarrier(VkImage image, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask, VkImageLayout oldLayout, VkImageLayout newLayout, VkImageAspectFlags imageAspectMask)
 {
 	VkImageMemoryBarrier result = { VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER };
 
@@ -100,7 +198,7 @@ VkImageMemoryBarrier imageBarrier(VkImage image, VkAccessFlags srcAccessMask, Vk
 	result.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	result.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	result.image = image;
-	result.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	result.subresourceRange.aspectMask = imageAspectMask;
 	result.subresourceRange.levelCount = VK_REMAINING_MIP_LEVELS;
 	result.subresourceRange.layerCount = VK_REMAINING_ARRAY_LAYERS;
 

@@ -12,16 +12,26 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     vkCmdResetQueryPool(commandBuffer, queryPool, 0, QUERYCOUNT);
     vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPool, 0);
 
+    VkImageMemoryBarrier renderBeginBarriers[] =
+    {
+        imageBarrier(colorTarget.image, 0, 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL),
+        imageBarrier(depthTarget.image, 0, 0, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT),
+    };
+    vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, sizeof(renderBeginBarriers) / sizeof(renderBeginBarriers[0]), renderBeginBarriers);
+
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass = renderPass;
-    renderPassInfo.framebuffer = swapChainFramebuffers[imageIndex];
+    renderPassInfo.framebuffer = targetFB;//swapChainFramebuffers[imageIndex];
     renderPassInfo.renderArea.offset = { 0, 0 };
     renderPassInfo.renderArea.extent = swapChainExtent;
 
-    VkClearValue clearColor = { {{0.0f, 0.0f, 0.0f, 1.0f}} };
-    renderPassInfo.clearValueCount = 1;
-    renderPassInfo.pClearValues = &clearColor;
+    VkClearValue clearValues[2] = {};
+    clearValues[0].color = { 0.f, 0.f, 0.f, 1.f };
+    clearValues[1].depthStencil = { 0.f, 0 };
+
+    renderPassInfo.clearValueCount = sizeof(clearValues) / sizeof(clearValues[0]);
+    renderPassInfo.pClearValues = clearValues;
 
     vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -85,6 +95,25 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
 
     vkCmdEndRenderPass(commandBuffer);
 
+    VkImageMemoryBarrier copyBarriers[] =
+    {
+        imageBarrier(colorTarget.image, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL),
+        imageBarrier(swapChainImages[imageIndex], 0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL)
+    };
+    vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, sizeof(copyBarriers) / sizeof(copyBarriers[0]), copyBarriers);
+
+    VkImageCopy copyRegion = {};
+    copyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    copyRegion.srcSubresource.layerCount = 1;
+    copyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+    copyRegion.dstSubresource.layerCount = 1;
+    copyRegion.extent = { swapChainExtent.width, swapChainExtent.height, 1 };
+
+    vkCmdCopyImage(commandBuffer, colorTarget.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+
+    VkImageMemoryBarrier presentBarrier = imageBarrier(swapChainImages[imageIndex], VK_ACCESS_TRANSFER_WRITE_BIT, 0, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
+    vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &presentBarrier);
+
     vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPool, 1);
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
@@ -99,8 +128,29 @@ void renderApplication::drawFrame() {
     uint32_t imageIndex;
     VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, imageAvailableSemaphores[currentFrame], VK_NULL_HANDLE, &imageIndex);
 
-    if (result == VK_ERROR_OUT_OF_DATE_KHR) {
+    if (result == VK_ERROR_OUT_OF_DATE_KHR || !targetFB) {
         recreateSwapChain();
+
+        if (colorTarget.image)
+        {
+            destroyImage(colorTarget, device);
+        }
+        if (depthTarget.image)
+        {
+            destroyImage(depthTarget, device);
+        }
+        if (targetFB)
+        {
+            vkDestroyFramebuffer(device, targetFB, 0);
+        }
+
+        VkPhysicalDeviceMemoryProperties memProperties;
+        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+
+        createImage(colorTarget, device, memProperties, swapChainExtent.width, swapChainExtent.height, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+        createImage(depthTarget, device, memProperties, swapChainExtent.width, swapChainExtent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+
+        targetFB = createFramebuffer(device, renderPass, colorTarget.imageView, depthTarget.imageView, swapChainExtent.width, swapChainExtent.height);
         return;
     }
     else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
@@ -146,15 +196,37 @@ void renderApplication::drawFrame() {
 
     result = vkQueuePresentKHR(presentQueue, &presentInfo);
 
+    currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+
     if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
         framebufferResized = false;
+
         recreateSwapChain();
+
+        if (colorTarget.image)
+        {
+            destroyImage(colorTarget, device);
+        }
+        if (depthTarget.image)
+        {
+            destroyImage(depthTarget, device);
+        }
+        if (targetFB)
+        {
+            vkDestroyFramebuffer(device, targetFB, 0);
+        }
+
+        VkPhysicalDeviceMemoryProperties memProperties;
+        vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+
+        createImage(colorTarget, device, memProperties, swapChainExtent.width, swapChainExtent.height, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+        createImage(depthTarget, device, memProperties, swapChainExtent.width, swapChainExtent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+
+        targetFB = createFramebuffer(device, renderPass, colorTarget.imageView, depthTarget.imageView, swapChainExtent.width, swapChainExtent.height);
     }
     else if (result != VK_SUCCESS) {
         throw std::runtime_error("failed to present swap chain image!");
     }
-
-    currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 
     if (vkGetQueryPoolResults(device, queryPool, 0,
         sizeof(queryResults) / sizeof(queryResults[0]), sizeof(queryResults), queryResults, sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT) != VK_NOT_READY)
