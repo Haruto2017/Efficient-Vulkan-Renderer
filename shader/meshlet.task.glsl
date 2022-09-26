@@ -15,6 +15,11 @@
 
 layout(local_size_x = 32, local_size_y = 1, local_size_x = 1) in;
 
+layout(push_constant) uniform block
+{
+    MeshDraw meshDraw;
+};
+
 out taskNV block 
 {
     uint meshletIndices[32];

@@ -27,7 +27,7 @@ void renderApplication::createMeshes()
         //    0.f, 0.f, 1.f, 0.f,
         //    (float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f, 1.f);
         draws[i].position = glm::vec3((float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f);
-        draws[i].scale = 1.f;
+        draws[i].scale = (float(rand()) / RAND_MAX) + 1.f;
 
         glm::vec3 axis((float(rand()) / RAND_MAX) * 2.f - 1.f, (float(rand()) / RAND_MAX) * 2.f - 1.f, (float(rand()) / RAND_MAX) * 2.f - 1.f);
         float angle = glm::radians((float(rand()) / RAND_MAX) * 90.f);
