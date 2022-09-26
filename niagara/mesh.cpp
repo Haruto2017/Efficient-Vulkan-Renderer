@@ -149,10 +149,15 @@ void Mesh::buildMeshlets()
         m_meshlets[i].vertexCount = (uint8_t)meshlets[i].vertex_count;
 
         meshopt_Bounds bounds = meshopt_computeMeshletBounds(meshlet_vertices.data() + vert_offset, meshlet_triangles.data() + tri_offset, meshlets[i].triangle_count, (const float*)m_vertices.data(), m_vertices.size(), sizeof(Vertex));
-        m_meshlets[i].cone[0] = bounds.cone_axis[0];
-        m_meshlets[i].cone[1] = bounds.cone_axis[1];
-        m_meshlets[i].cone[2] = bounds.cone_axis[2];
-        m_meshlets[i].cone[3] = bounds.cone_cutoff;
+        m_meshlets[i].center = glm::vec3(bounds.center[0], bounds.center[1], bounds.center[2]);
+        m_meshlets[i].radius = bounds.radius;
+        //m_meshlets[i].cone_apex = glm::vec3(bounds.cone_apex[0], bounds.cone_apex[1], bounds.cone_apex[2]);
+        //m_meshlets[i].padding = 0;
+
+        m_meshlets[i].cone_axis[0] = bounds.cone_axis_s8[0];
+        m_meshlets[i].cone_axis[1] = bounds.cone_axis_s8[1];
+        m_meshlets[i].cone_axis[2] = bounds.cone_axis_s8[2];
+        m_meshlets[i].cone_cutoff = bounds.cone_cutoff_s8;
     }
 
     while (m_meshlets.size() % 32)

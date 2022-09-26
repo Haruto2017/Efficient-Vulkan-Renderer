@@ -14,10 +14,10 @@ void renderApplication::createMeshes()
 
     glm::mat4 projection = MakeInfReversedZProjRH(glm::radians(70.f), float(swapChainExtent.width) / float(swapChainExtent.height), 0.01f);
 
-    drawCount = 1000;
+    drawCount = 3000;
     draws.resize(drawCount);
 
-    srand(std::time(NULL));
+    srand(42);
 
     for (uint32_t i = 0; i < drawCount; ++i)
     {

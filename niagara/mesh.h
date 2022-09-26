@@ -46,7 +46,13 @@ struct Vertex
 
 struct alignas(16) Meshlet
 {
-	float cone[4];
+	glm::vec3 center;
+	float radius;
+	//glm::vec3 cone_apex;
+	//float padding;
+	int8_t cone_axis[3];
+	int8_t cone_cutoff;
+
 	uint32_t dataOffset;
 	uint8_t triangleCount; 
 	uint8_t vertexCount;

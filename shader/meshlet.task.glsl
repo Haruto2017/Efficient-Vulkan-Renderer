@@ -30,9 +30,9 @@ layout(binding = 1) buffer readonly Meshlets
     Meshlet meshlets[];
 };
 
-bool coneCull(vec4 cone, vec3 view)
+bool coneCull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff , vec3 camera_position)
 {
-    return dot(cone.xyz, view) > cone.w;
+    return dot(center - camera_position, cone_axis) > cone_cutoff * length(center - camera_position) + radius;
 }
 
 void main() {
@@ -41,7 +41,13 @@ void main() {
     uint mi = mgi * 32 + ti;
 
 #if CULL
-    bool accept = !coneCull(meshlets[mi].cone, vec3(0, 0, 1));
+    vec3 center = rotate(meshlets[mi].center, meshDraw.rotation) * meshDraw.scale + meshDraw.position;
+    float radius = meshlets[mi].radius * meshDraw.scale;
+    vec3 cone_axis = rotate(vec3(int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0 ), meshDraw.rotation);
+    float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
+
+    bool accept = !coneCull(center, radius, cone_axis, meshlets[mi].cone_cutoff, vec3(0, 0, 1));
+
     uvec4 ballot = subgroupBallot(accept);
     uint index = subgroupBallotExclusiveBitCount(ballot);
 
