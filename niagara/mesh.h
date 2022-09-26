@@ -54,9 +54,14 @@ struct alignas(16) Meshlet
 
 struct alignas(16) MeshDraw
 {
-	float offset[2];
-	float scale[2];
+	glm::mat4 projection;
+	//glm::mat4 model;
+	glm::vec3 position;
+	float scale;
+	glm::quat rotation;
 };
+
+glm::mat4 MakeInfReversedZProjRH(float fovY_radians, float aspectWbyH, float zNear);
 
 class Mesh
 {

@@ -31,7 +31,6 @@ void main() {
     vec3 inNormal = vec3(int(v.nx), int(v.ny), int(v.nz)) / 127.0 - 1.0;
     vec2 inTexCoord  = vec2(v.tu, v.tv);
 
-    gl_Position = vec4((inPosition * vec3(meshDraw.scale, 1) + vec3(meshDraw.offset, 0))
-         * vec3(2, 2, -0.5) + vec3(-1, -1, 0.5), 1.0);
+    gl_Position = meshDraw.projection * vec4(rotate(inPosition, meshDraw.rotation) * meshDraw.scale + meshDraw.position, 1.0);
     fragColor = normalize(inNormal) * 0.5 + 0.5;
 }

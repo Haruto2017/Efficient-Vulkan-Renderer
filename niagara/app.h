@@ -72,6 +72,7 @@ private:
     bool framebufferResized = false;
 
     std::vector<Mesh> meshes;
+    std::vector<MeshDraw> draws;
 
     VkQueryPool queryPool;
     uint64_t queryResults[2];

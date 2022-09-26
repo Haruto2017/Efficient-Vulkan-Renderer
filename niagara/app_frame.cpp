@@ -49,16 +49,6 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     scissor.extent = swapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
-    std::vector<MeshDraw> draws(drawCount);
-
-    for (uint32_t i = 0; i < drawCount; ++i)
-    {
-        draws[i].offset[0] = float(i % 10) / 10.f + 0.5f / 10.f;
-        draws[i].offset[1] = float(i / 10) / 10.f + 0.5f / 10.f;
-        draws[i].scale[0] = 1 / 10.f;
-        draws[i].scale[1] = 1 / 10.f;
-    }
-
     if (rtxEnabled && rtxSupported)
     {
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxGraphicsPipeline);

@@ -11,6 +11,28 @@ void renderApplication::createMeshes()
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
 
     meshes[0].generateRenderData(device, commandBuffers[0], graphicsQueue, memProperties);
+
+    glm::mat4 projection = MakeInfReversedZProjRH(glm::radians(70.f), float(swapChainExtent.width) / float(swapChainExtent.height), 0.01f);
+
+    drawCount = 1000;
+    draws.resize(drawCount);
+
+    srand(std::time(NULL));
+
+    for (uint32_t i = 0; i < drawCount; ++i)
+    {
+        draws[i].projection = projection;
+        //draws[i].model = glm::mat4(1.f, 0.f, 0.f, 0.f,
+        //    0.f, 1.f, 0.f, 0.f,
+        //    0.f, 0.f, 1.f, 0.f,
+        //    (float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f, 1.f);
+        draws[i].position = glm::vec3((float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f);
+        draws[i].scale = 1.f;
+
+        glm::vec3 axis((float(rand()) / RAND_MAX) * 2.f - 1.f, (float(rand()) / RAND_MAX) * 2.f - 1.f, (float(rand()) / RAND_MAX) * 2.f - 1.f);
+        float angle = glm::radians((float(rand()) / RAND_MAX) * 90.f);
+        draws[i].rotation = glm::rotate(glm::quat(1.f, 0.f, 0.f, 0.f), angle, axis);
+    }
 }
 
 void renderApplication::createInstance() {
