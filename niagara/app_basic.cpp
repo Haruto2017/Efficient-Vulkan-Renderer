@@ -16,7 +16,7 @@ void renderApplication::createMeshes()
     drawCount = 3000;
     draws.resize(drawCount);
 
-    srand(43);
+    srand(std::time(nullptr));
 
     for (uint32_t i = 0; i < drawCount; ++i)
     {
@@ -33,21 +33,25 @@ void renderApplication::createMeshes()
         float angle = glm::radians((float(rand()) / RAND_MAX) * 90.f);
         draws[i].rotation = glm::rotate(glm::quat(1.f, 0.f, 0.f, 0.f), angle, axis);
 
+        draws[i].indexCount = uint32_t(mesh.indexCount);
+        draws[i].indexOffset = uint32_t(mesh.indexOffset);
         draws[i].vertexOffset = mesh.vertexOffset;
         draws[i].meshletCount = mesh.meshletCount;
         draws[i].meshletOffset = mesh.meshletOffset;
 
-        memset(draws[i].commandData, 0, sizeof(draws[i].commandData));
-        draws[i].commandIndirect.indexCount = uint32_t(mesh.indexCount);
-        draws[i].commandIndirect.firstIndex = mesh.indexOffset;
-        draws[i].commandIndirect.instanceCount = 1;
-        draws[i].commandIndirect.vertexOffset = mesh.vertexOffset;
-        draws[i].commandIndirectMS.taskCount = (mesh.meshletCount + 31) / 32;
+        //memset(draws[i].commandData, 0, sizeof(draws[i].commandData));
+        //draws[i].commandIndirect.indexCount = uint32_t(mesh.indexCount);
+        //draws[i].commandIndirect.firstIndex = mesh.indexOffset;
+        //draws[i].commandIndirect.instanceCount = 1;
+        //draws[i].commandIndirect.vertexOffset = mesh.vertexOffset;
+        //draws[i].commandIndirectMS.taskCount = (mesh.meshletCount + 31) / 32;
         triangleCount += mesh.indexCount / 3;
     }
     Buffer scratch = {};
     createBuffer(scratch, device, memProperties, sizeof(draws[0]) * draws.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
-    createBuffer(db, device, memProperties, sizeof(draws[0]) * draws.size(), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+    createBuffer(db, device, memProperties, sizeof(draws[0]) * draws.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    createBuffer(dcb, device, memProperties, sizeof(MeshDrawCommand) * draws.size(), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     uploadBuffer(device, commandBuffers[0], graphicsQueue, db, scratch, draws.data(), draws.size() * sizeof(MeshDraw));
 

@@ -72,8 +72,8 @@ void renderApplication::mainLoop() {
         double trianglesPerSec = frameGPUAvg > 0.f ? double(drawCount) * double(triangleCount) / double(frameGPUAvg * 1e-3) : 0.f;
         double meshPerSec = frameGPUAvg > 0.f ? double(drawCount) / double(frameGPUAvg * 1e-3) : 0.f;
         char title[256];
-        sprintf(title, "cpu: %.1f ms; gpu: %.3f ms; triangles %d; meshlets %d; mesh shading %s; %.1fB tri/sec",
-            frameCPUAvg, frameGPUAvg, meshes[0].m_indices.size() / 3, meshes[0].m_meshlets.size(), rtxEnabled ? "ON" : "OFF", trianglesPerSec * 1e-9);
+        sprintf(title, "cpu: %.1f ms; gpu: %.3f ms; triangles %.1fM; meshlets %d; mesh shading %s; %.1fB tri/sec",
+            frameCPUAvg, frameGPUAvg, double(triangleCount) * 1e-6, meshes[0].m_meshlets.size(), rtxEnabled ? "ON" : "OFF", trianglesPerSec * 1e-9);
         glfwSetWindowTitle(window, title);
     }
 
@@ -88,6 +88,7 @@ void renderApplication::cleanup() {
     }
 
     destroyBuffer(db, device);
+    destroyBuffer(dcb, device);
 
     destroyImage(colorTarget, device);
     destroyImage(depthTarget, device);
@@ -99,6 +100,8 @@ void renderApplication::cleanup() {
     {
         vkDestroyPipeline(device, rtxGraphicsPipeline, nullptr);
         destroyProgram(rtxGraphicsProgram);
+        vkDestroyPipeline(device, drawcmdPipeline, nullptr);
+        destroyProgram(drawcmdProgram);
     }
 
     vkDestroyPipeline(device, graphicsPipeline, nullptr);

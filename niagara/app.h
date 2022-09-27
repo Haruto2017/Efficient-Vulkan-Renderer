@@ -55,11 +55,16 @@ private:
 
     VkRenderPass renderPass;
 
+    VkPipelineCache pipelineCache = 0;
+
     VkPipeline graphicsPipeline;
     Program graphicsProgram;
 
     VkPipeline rtxGraphicsPipeline;
     Program rtxGraphicsProgram;
+
+    VkPipeline drawcmdPipeline;
+    Program drawcmdProgram;
 
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
@@ -86,6 +91,7 @@ private:
     uint32_t drawCount = 100;
     uint32_t triangleCount = 0;
     Buffer db;
+    Buffer dcb;
 
     bool rtxSupported = false;
     bool rtxEnabled = false;
@@ -124,7 +130,9 @@ private:
 
     void createGenericGraphicsPipelineLayout(Shaders shaders, VkShaderStageFlags pushConstantStages, VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout, size_t pushConstantSize);
 
-    void createGenericGraphicsPipeline(Shaders shaders, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline);
+    void createGenericGraphicsPipeline(Shaders shaders, VkPipelineCache pipelineCache, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline);
+
+    void createComputePipeline(VkPipelineCache pipelineCache, const Shader& shader, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline);
     
     void createGenericProgram(VkPipelineBindPoint bindPoint, Shaders shaders, size_t pushConstantSize, Program& outProgram);
 

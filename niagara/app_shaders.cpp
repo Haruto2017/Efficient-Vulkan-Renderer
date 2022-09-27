@@ -12,6 +12,10 @@ static VkShaderStageFlagBits getShaderStage(SpvExecutionModel executionModel)
     {
         return VK_SHADER_STAGE_FRAGMENT_BIT;
     } break;
+    case SpvExecutionModelGLCompute:
+    {
+        return VK_SHADER_STAGE_COMPUTE_BIT;
+    } break;
     case SpvExecutionModelTaskNV:
     {
         return VK_SHADER_STAGE_TASK_BIT_NV;
@@ -179,7 +183,7 @@ void renderApplication::createGenericGraphicsPipelineLayout(Shaders shaders, VkS
     }
 }
 
-void renderApplication::createGenericGraphicsPipeline(Shaders shaders, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline)
+void renderApplication::createGenericGraphicsPipeline(Shaders shaders, VkPipelineCache pipelineCache, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline)
 {
     std::vector<VkPipelineShaderStageCreateInfo> stages;
     for (const Shader* shader : shaders)
@@ -213,11 +217,7 @@ void renderApplication::createGenericGraphicsPipeline(Shaders shaders, VkPipelin
     rasterizer.rasterizerDiscardEnable = VK_FALSE;
     rasterizer.polygonMode = VK_POLYGON_MODE_FILL;
     rasterizer.lineWidth = 1.0f;
-#if VISUALIZE_BACK_CULLING
-    rasterizer.cullMode = VK_CULL_MODE_FRONT_BIT;
-#else
     rasterizer.cullMode = VK_CULL_MODE_BACK_BIT;
-#endif
     rasterizer.frontFace = VK_FRONT_FACE_CLOCKWISE;
     rasterizer.depthBiasEnable = VK_FALSE;
 
@@ -272,8 +272,26 @@ void renderApplication::createGenericGraphicsPipeline(Shaders shaders, VkPipelin
     pipelineInfo.subpass = 0;
     pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
 
-    if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &outPipeline) != VK_SUCCESS) {
+    if (vkCreateGraphicsPipelines(device, pipelineCache, 1, &pipelineInfo, nullptr, &outPipeline) != VK_SUCCESS) {
         throw std::runtime_error("failed to create graphics pipeline!");
+    }
+}
+
+void renderApplication::createComputePipeline(VkPipelineCache pipelineCache, const Shader& shader, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline)
+{
+    assert(shader.stage == VK_SHADER_STAGE_COMPUTE_BIT);
+
+    VkPipelineShaderStageCreateInfo stage = { VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
+    stage.stage = shader.stage;
+    stage.module = shader.module;
+    stage.pName = "main";
+
+    VkComputePipelineCreateInfo createInfo = { VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO };
+    createInfo.layout = inPipelineLayout;
+    createInfo.stage = stage;
+
+    if (vkCreateComputePipelines(device, pipelineCache, 1, &createInfo, 0, &outPipeline) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create compute pipeline!");
     }
 }
 
@@ -390,6 +408,7 @@ void renderApplication::createGraphicsPipeline() {
     bool rc = false;
     Shader meshShader = {};
     Shader taskShader = {};
+    Shader compShader = {};
     if (rtxSupported)
     {
         std::vector<char> meshShaderCode = readFile("..\\compiledShader\\meshlet.mesh.spv");
@@ -401,6 +420,11 @@ void renderApplication::createGraphicsPipeline() {
         if (!createShader(taskShader, taskShaderCode))
         {
             throw std::runtime_error("failed to create task shader");
+        }
+        std::vector<char> compShaderCode = readFile("..\\compiledShader\\drawcmd.comp.spv");
+        if (!createShader(compShader, compShaderCode))
+        {
+            throw std::runtime_error("failed to create comp shader");
         }
     }
 
@@ -422,10 +446,13 @@ void renderApplication::createGraphicsPipeline() {
     if (rtxSupported)
     {
         createGenericProgram(VK_PIPELINE_BIND_POINT_GRAPHICS, { &taskShader, &meshShader, &fragShader }, sizeof(Globals), rtxGraphicsProgram);
-        createGenericGraphicsPipeline({ &taskShader, &meshShader, &fragShader }, rtxGraphicsProgram.layout, rtxGraphicsPipeline);
+        createGenericGraphicsPipeline({ &taskShader, &meshShader, &fragShader }, pipelineCache, rtxGraphicsProgram.layout, rtxGraphicsPipeline);
+
+        createGenericProgram(VK_PIPELINE_BIND_POINT_COMPUTE, { &compShader }, 0, drawcmdProgram);
+        createComputePipeline(pipelineCache, compShader, drawcmdProgram.layout, drawcmdPipeline);
     }
     createGenericProgram(VK_PIPELINE_BIND_POINT_GRAPHICS, { &vertShader, &fragShader }, sizeof(Globals), graphicsProgram);
-    createGenericGraphicsPipeline({ &vertShader, &fragShader }, graphicsProgram.layout, graphicsPipeline);
+    createGenericGraphicsPipeline({ &vertShader, &fragShader }, pipelineCache, graphicsProgram.layout, graphicsPipeline);
 
     destroyShader(fragShader);
     destroyShader(vertShader);
@@ -433,5 +460,6 @@ void renderApplication::createGraphicsPipeline() {
     {
         destroyShader(meshShader);
         destroyShader(taskShader);
+        destroyShader(compShader);
     }
 }

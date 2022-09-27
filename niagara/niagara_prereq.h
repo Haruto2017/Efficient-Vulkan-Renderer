@@ -3,7 +3,6 @@
 
 #define QUERYCOUNT 128
 #define MESHLETTRICOUNT 124
-#define VISUALIZE_BACK_CULLING 0
 
 #include <GLFW/glfw3.h>
 #include <GLFW/glfw3native.h>

@@ -71,20 +71,16 @@ struct alignas(16) MeshDraw
 	glm::quat rotation;
 
 	uint32_t vertexOffset;
-
+	uint32_t indexOffset;
+	uint32_t indexCount;
 	uint32_t meshletOffset;
 	uint32_t meshletCount;
+};
 
-	union
-	{
-		uint32_t commandData[7];
-
-		struct
-		{
-			VkDrawIndexedIndirectCommand commandIndirect; // 5 * 4
-			VkDrawMeshTasksIndirectCommandNV commandIndirectMS; // 2 * 4
-		};
-	};
+struct MeshDrawCommand
+{
+	VkDrawIndexedIndirectCommand indirect; // 5 * 4
+	VkDrawMeshTasksIndirectCommandNV indirectMS; // 2 * 4
 };
 
 struct MeshInstance
