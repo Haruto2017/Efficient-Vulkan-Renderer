@@ -81,7 +81,7 @@ void main() {
 
     for (uint i = ti; i < vertexCount; i += 32)
     {
-        uint vi = meshletData[vertexOffset + i];
+        uint vi = meshletData[vertexOffset + i] + draws[gl_DrawIDARB].vertexOffset;
         Vertex v = vertices[vi];
 
         vec3 inPosition = vec3(v.vx, v.vy, v.vz);

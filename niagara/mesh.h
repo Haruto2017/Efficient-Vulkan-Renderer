@@ -70,6 +70,9 @@ struct alignas(16) MeshDraw
 	float scale;
 	glm::quat rotation;
 
+	uint32_t vertexOffset;
+
+	uint32_t meshletOffset;
 	uint32_t meshletCount;
 
 	union
@@ -84,12 +87,24 @@ struct alignas(16) MeshDraw
 	};
 };
 
+struct MeshInstance
+{
+	uint32_t meshletOffset;
+	uint32_t meshletCount;
+
+	uint32_t vertexOffset;
+	uint32_t vertexCount;
+
+	uint32_t indexOffset;
+	uint32_t indexCount;
+};
+
 glm::mat4 MakeInfReversedZProjRH(float fovY_radians, float aspectWbyH, float zNear);
 
 class Mesh
 {
 public:
-	void loadMesh(std::string objpath);
+	void loadMesh(std::string objpath, bool buildMeshlets);
 	void generateRenderData(VkDevice device, VkCommandBuffer commandBuffer, VkQueue queue, const VkPhysicalDeviceMemoryProperties& memoryProperties);
 	void destroyRenderData(VkDevice device);
 
@@ -103,12 +118,11 @@ public:
 	std::vector<Meshlet> m_meshlets;
 	std::vector<uint32_t> m_meshlet_data;
 
+	std::vector<MeshInstance> m_instances;
+
 	// To Do: use meshlet_vertices & meshlet_indices buffers
 
 	bool rtxSupported;
-private:
-	void buildMeshlets();
-	//void buildMeshletCones();
 };
 
 #endif

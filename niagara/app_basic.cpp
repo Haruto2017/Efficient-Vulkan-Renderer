@@ -5,7 +5,8 @@ void renderApplication::createMeshes()
     meshes.resize(1);
     meshes[0].rtxSupported = rtxSupported;
     //meshes[0].loadMesh("..\\extern\\common-3d-test-models\\data\\xyzrgb_dragon.obj");
-    meshes[0].loadMesh("..\\kitten.obj");
+    meshes[0].loadMesh("..\\kitten.obj", rtxSupported);
+    meshes[0].loadMesh("..\\extern\\common-3d-test-models\\data\\suzanne.obj", rtxSupported);
 
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
@@ -15,27 +16,34 @@ void renderApplication::createMeshes()
     drawCount = 3000;
     draws.resize(drawCount);
 
-    srand(42);
+    srand(43);
 
     for (uint32_t i = 0; i < drawCount; ++i)
     {
+        int meshIndex = rand() % meshes[0].m_instances.size();
+        const MeshInstance& mesh = meshes[0].m_instances[meshIndex];
         //draws[i].model = glm::mat4(1.f, 0.f, 0.f, 0.f,
         //    0.f, 1.f, 0.f, 0.f,
         //    0.f, 0.f, 1.f, 0.f,
         //    (float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f, 1.f);
         draws[i].position = glm::vec3((float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f);
-        draws[i].scale = (float(rand()) / RAND_MAX) + 1.f;
+        draws[i].scale = meshIndex == 1 ? (float(rand()) / RAND_MAX) *  0.3f + 0.4f : (float(rand()) / RAND_MAX) + 1.f;
 
         glm::vec3 axis((float(rand()) / RAND_MAX) * 2.f - 1.f, (float(rand()) / RAND_MAX) * 2.f - 1.f, (float(rand()) / RAND_MAX) * 2.f - 1.f);
         float angle = glm::radians((float(rand()) / RAND_MAX) * 90.f);
         draws[i].rotation = glm::rotate(glm::quat(1.f, 0.f, 0.f, 0.f), angle, axis);
 
-        draws[i].meshletCount = uint32_t(meshes[0].m_meshlets.size());
+        draws[i].vertexOffset = mesh.vertexOffset;
+        draws[i].meshletCount = mesh.meshletCount;
+        draws[i].meshletOffset = mesh.meshletOffset;
 
         memset(draws[i].commandData, 0, sizeof(draws[i].commandData));
-        draws[i].commandIndirect.indexCount = uint32_t(meshes[0].m_indices.size());
+        draws[i].commandIndirect.indexCount = uint32_t(mesh.indexCount);
+        draws[i].commandIndirect.firstIndex = mesh.indexOffset;
         draws[i].commandIndirect.instanceCount = 1;
-        draws[i].commandIndirectMS.taskCount = uint32_t(meshes[0].m_meshlets.size() / 32) + uint32_t(meshes[0].m_meshlets.size() % 32 ? 1 : 0);
+        draws[i].commandIndirect.vertexOffset = mesh.vertexOffset;
+        draws[i].commandIndirectMS.taskCount = (mesh.meshletCount + 31) / 32;
+        triangleCount += mesh.indexCount / 3;
     }
     Buffer scratch = {};
     createBuffer(scratch, device, memProperties, sizeof(draws[0]) * draws.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);

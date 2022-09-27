@@ -40,11 +40,11 @@ bool coneCull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff , vec
 void main() {
     uint mgi = gl_WorkGroupID.x;
     uint ti = gl_LocalInvocationID.x;
-    uint mi = mgi * 32 + ti;
+    uint mi = mgi * 32 + ti + draws[gl_DrawIDARB].meshletOffset;
 
 #if CULL
     bool accept = false;
-    if (mi < draws[gl_DrawIDARB].meshletCount)
+    if (mi < draws[gl_DrawIDARB].meshletOffset + draws[gl_DrawIDARB].meshletCount)
     {
         vec3 center = rotate(meshlets[mi].center, draws[gl_DrawIDARB].rotation) * draws[gl_DrawIDARB].scale + draws[gl_DrawIDARB].position;
         float radius = meshlets[mi].radius * draws[gl_DrawIDARB].scale;
@@ -73,7 +73,7 @@ void main() {
 
     if (ti == 0)
     {
-        gl_TaskCountNV = min(32, draws[gl_DrawIDARB].meshletCount - mgi * 32);
+        gl_TaskCountNV = min(32, draws[gl_DrawIDARB].meshletOffset + draws[gl_DrawIDARB].meshletCount - mgi * 32);
     }
 #endif
 }

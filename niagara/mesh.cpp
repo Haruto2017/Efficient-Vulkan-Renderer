@@ -12,7 +12,7 @@ glm::mat4 MakeInfReversedZProjRH(float fovY_radians, float aspectWbyH, float zNe
         0.0f, 0.0f, zNear, 0.0f);
 }
 
-void Mesh::loadMesh(std::string objpath)
+void Mesh::loadMesh(std::string objpath, bool buildMeshlets)
 {
 	tinyobj::ObjReaderConfig reader_config;
 	reader_config.mtl_search_path = "./";
@@ -41,7 +41,7 @@ void Mesh::loadMesh(std::string objpath)
     });
 
     size_t num_indices = num_triangles * 3;
-    std::vector<Vertex> vertices(num_indices);
+    std::vector<Vertex> triangle_vertices(num_indices);
 
     // Loop over shapes
     uint32_t curr_tri = 0;
@@ -62,26 +62,26 @@ void Mesh::loadMesh(std::string objpath)
                 tinyobj::real_t vx = attrib.vertices[3 * size_t(idx.vertex_index) + 0];
                 tinyobj::real_t vy = attrib.vertices[3 * size_t(idx.vertex_index) + 1];
                 tinyobj::real_t vz = attrib.vertices[3 * size_t(idx.vertex_index) + 2];
-                vertices[(uint64_t)curr_tri * 3 + v].px = vx;
-                vertices[(uint64_t)curr_tri * 3 + v].py = vy;
-                vertices[(uint64_t)curr_tri * 3 + v].pz = vz;
+                triangle_vertices[(uint64_t)curr_tri * 3 + v].px = vx;
+                triangle_vertices[(uint64_t)curr_tri * 3 + v].py = vy;
+                triangle_vertices[(uint64_t)curr_tri * 3 + v].pz = vz;
 
                 // Check if `normal_index` is zero or positive. negative = no normal data
                 if (idx.normal_index >= 0) {
                     tinyobj::real_t nx = attrib.normals[3 * size_t(idx.normal_index) + 0];
                     tinyobj::real_t ny = attrib.normals[3 * size_t(idx.normal_index) + 1];
                     tinyobj::real_t nz = attrib.normals[3 * size_t(idx.normal_index) + 2];
-                    vertices[(uint64_t)curr_tri * 3 + v].nx = uint8_t(nx * 127.f + 127.f);
-                    vertices[(uint64_t)curr_tri * 3 + v].ny = uint8_t(ny * 127.f + 127.f);
-                    vertices[(uint64_t)curr_tri * 3 + v].nz = uint8_t(nz * 127.f + 127.f);
+                    triangle_vertices[(uint64_t)curr_tri * 3 + v].nx = uint8_t(nx * 127.f + 127.f);
+                    triangle_vertices[(uint64_t)curr_tri * 3 + v].ny = uint8_t(ny * 127.f + 127.f);
+                    triangle_vertices[(uint64_t)curr_tri * 3 + v].nz = uint8_t(nz * 127.f + 127.f);
                 }
 
                 // Check if `texcoord_index` is zero or positive. negative = no texcoord data
                 if (idx.texcoord_index >= 0) {
                     tinyobj::real_t tx = attrib.texcoords[2 * size_t(idx.texcoord_index) + 0];
                     tinyobj::real_t ty = attrib.texcoords[2 * size_t(idx.texcoord_index) + 1];
-                    vertices[(uint64_t)curr_tri * 3 + v].tu = meshopt_quantizeHalf(tx);
-                    vertices[(uint64_t)curr_tri * 3 + v].tv = meshopt_quantizeHalf(ty);
+                    triangle_vertices[(uint64_t)curr_tri * 3 + v].tu = meshopt_quantizeHalf(tx);
+                    triangle_vertices[(uint64_t)curr_tri * 3 + v].tv = meshopt_quantizeHalf(ty);
                 }
 
                 // Optional: vertex colors
@@ -101,64 +101,90 @@ void Mesh::loadMesh(std::string objpath)
     //m_indices.resize(num_indices);
     //std::iota(std::begin(m_indices), std::end(m_indices), 0);
     std::vector<uint32_t> remap(num_indices);
-    size_t num_unique_vertices = meshopt_generateVertexRemap((unsigned int *)remap.data(), 0, num_indices, vertices.data(), num_indices, sizeof(Vertex));
+    size_t num_unique_vertices = meshopt_generateVertexRemap((unsigned int *)remap.data(), 0, num_indices, triangle_vertices.data(), num_indices, sizeof(Vertex));
 
-    m_vertices.resize(num_unique_vertices);
-    m_indices.resize(num_indices);
+    std::vector<Vertex> vertices(num_unique_vertices);
+    std::vector<uint32_t> indices(num_indices);
 
-    meshopt_remapVertexBuffer(m_vertices.data(), vertices.data(), num_indices, sizeof(Vertex), remap.data());
-    meshopt_remapIndexBuffer(m_indices.data(), 0, num_indices, remap.data());
+    meshopt_remapVertexBuffer(vertices.data(), triangle_vertices.data(), num_indices, sizeof(Vertex), remap.data());
+    meshopt_remapIndexBuffer(indices.data(), 0, num_indices, remap.data());
 
-    meshopt_optimizeVertexCache(m_indices.data(), m_indices.data(), num_indices, num_unique_vertices);
-    meshopt_optimizeVertexFetch(m_vertices.data(), m_indices.data(), num_indices, m_vertices.data(), num_unique_vertices, sizeof(Vertex));
-}
+    meshopt_optimizeVertexCache(indices.data(), indices.data(), num_indices, num_unique_vertices);
+    meshopt_optimizeVertexFetch(vertices.data(), indices.data(), num_indices, vertices.data(), num_unique_vertices, sizeof(Vertex));
 
-void Mesh::buildMeshlets()
-{
-    const size_t max_vertices = 64;
-    const size_t max_triangles = MESHLETTRICOUNT;
-    std::vector<meshopt_Meshlet> meshlets(meshopt_buildMeshletsBound(m_indices.size(), max_vertices, max_triangles));
-    std::vector<uint8_t> meshlet_triangles(meshlets.size() * max_triangles * 3);
-    std::vector<uint32_t> meshlet_vertices(meshlets.size() * max_vertices);
+    uint32_t vertexOffset = uint32_t(m_vertices.size());
+    uint32_t indexOffset = uint32_t(m_indices.size());
 
-    meshlets.resize(meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), m_indices.data(), m_indices.size(), (const float*)m_vertices.data(), m_vertices.size(), sizeof(Vertex), max_vertices, max_triangles, 1.0));
+    m_vertices.insert(m_vertices.end(), vertices.begin(), vertices.end());
+    m_indices.insert(m_indices.end(), indices.begin(), indices.end());
 
-    m_meshlets.resize(meshlets.size());
+    uint32_t meshletOffset = uint32_t(m_meshlets.size());
+    uint32_t meshletCount = 0;
 
-    for (uint32_t i = 0; i < m_meshlets.size(); ++i)
+    if (buildMeshlets)
     {
-        uint32_t tri_offset = meshlets[i].triangle_offset;
-        uint32_t vert_offset = meshlets[i].vertex_offset;
-        size_t dataOffset = m_meshlet_data.size();
-        
-        for (uint32_t j = 0; j < meshlets[i].vertex_count; ++j)
+        const size_t max_vertices = 64;
+        const size_t max_triangles = MESHLETTRICOUNT;
+        std::vector<meshopt_Meshlet> meshlets(meshopt_buildMeshletsBound(indices.size(), max_vertices, max_triangles));
+        std::vector<uint8_t> meshlet_triangles(meshlets.size() * max_triangles * 3);
+        std::vector<uint32_t> meshlet_vertices(meshlets.size() * max_vertices);
+
+        meshlets.resize(meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), indices.data(), indices.size(), (const float*)vertices.data(), vertices.size(), sizeof(Vertex), max_vertices, max_triangles, 1.0));
+
+        meshletCount = meshlets.size();
+
+        m_meshlets.resize(m_meshlets.size() + meshlets.size());
+
+        for (uint32_t i = 0; i < meshlets.size(); ++i)
         {
-            m_meshlet_data.push_back(meshlet_vertices[vert_offset + j]);
+            uint32_t tri_offset = meshlets[i].triangle_offset;
+            uint32_t vert_offset = meshlets[i].vertex_offset;
+            size_t dataOffset = m_meshlet_data.size();
+
+            for (uint32_t j = 0; j < meshlets[i].vertex_count; ++j)
+            {
+                m_meshlet_data.push_back(meshlet_vertices[vert_offset + j]);
+            }
+
+            const uint32_t* indexGroups = reinterpret_cast<const uint32_t*>(meshlet_triangles.data() + tri_offset);
+            uint32_t indexGroupCount = (meshlets[i].triangle_count * 3 + 3) / 4;
+
+            for (uint32_t j = 0; j < indexGroupCount; ++j)
+            {
+                m_meshlet_data.push_back(indexGroups[j]);
+            }
+
+            int trueOffset = i + meshletOffset;
+
+            m_meshlets[trueOffset].dataOffset = (uint32_t)dataOffset;
+            m_meshlets[trueOffset].triangleCount = (uint8_t)meshlets[i].triangle_count;
+            m_meshlets[trueOffset].vertexCount = (uint8_t)meshlets[i].vertex_count;
+
+            meshopt_Bounds bounds = meshopt_computeMeshletBounds(meshlet_vertices.data() + vert_offset, meshlet_triangles.data() + tri_offset, meshlets[i].triangle_count, (const float*)vertices.data(), vertices.size(), sizeof(Vertex));
+            m_meshlets[trueOffset].center = glm::vec3(bounds.center[0], bounds.center[1], bounds.center[2]);
+            m_meshlets[trueOffset].radius = bounds.radius;
+            //m_meshlets[i].cone_apex = glm::vec3(bounds.cone_apex[0], bounds.cone_apex[1], bounds.cone_apex[2]);
+            //m_meshlets[i].padding = 0;
+
+            m_meshlets[trueOffset].cone_axis[0] = bounds.cone_axis_s8[0];
+            m_meshlets[trueOffset].cone_axis[1] = bounds.cone_axis_s8[1];
+            m_meshlets[trueOffset].cone_axis[2] = bounds.cone_axis_s8[2];
+            m_meshlets[trueOffset].cone_cutoff = bounds.cone_cutoff_s8;
         }
-
-        const uint32_t* indexGroups = reinterpret_cast<const uint32_t*>(meshlet_triangles.data() + tri_offset);
-        uint32_t indexGroupCount = (meshlets[i].triangle_count * 3 + 3) / 4;
-
-        for (uint32_t j = 0; j < indexGroupCount; ++j)
-        {
-            m_meshlet_data.push_back(indexGroups[j]);
-        }
-
-        m_meshlets[i].dataOffset = (uint32_t)dataOffset;
-        m_meshlets[i].triangleCount = (uint8_t)meshlets[i].triangle_count;
-        m_meshlets[i].vertexCount = (uint8_t)meshlets[i].vertex_count;
-
-        meshopt_Bounds bounds = meshopt_computeMeshletBounds(meshlet_vertices.data() + vert_offset, meshlet_triangles.data() + tri_offset, meshlets[i].triangle_count, (const float*)m_vertices.data(), m_vertices.size(), sizeof(Vertex));
-        m_meshlets[i].center = glm::vec3(bounds.center[0], bounds.center[1], bounds.center[2]);
-        m_meshlets[i].radius = bounds.radius;
-        //m_meshlets[i].cone_apex = glm::vec3(bounds.cone_apex[0], bounds.cone_apex[1], bounds.cone_apex[2]);
-        //m_meshlets[i].padding = 0;
-
-        m_meshlets[i].cone_axis[0] = bounds.cone_axis_s8[0];
-        m_meshlets[i].cone_axis[1] = bounds.cone_axis_s8[1];
-        m_meshlets[i].cone_axis[2] = bounds.cone_axis_s8[2];
-        m_meshlets[i].cone_cutoff = bounds.cone_cutoff_s8;
     }
+
+    MeshInstance mesh = {};
+
+    mesh.meshletOffset = meshletOffset;
+    mesh.meshletCount = meshletCount;
+
+    mesh.indexOffset = indexOffset;
+    mesh.indexCount = uint32_t(indices.size());
+
+    mesh.vertexOffset = vertexOffset;
+    mesh.vertexCount = uint32_t(vertices.size());
+
+    m_instances.push_back(mesh);
 
     //while (m_meshlets.size() % 32)
     //{
@@ -255,7 +281,6 @@ void Mesh::generateRenderData(VkDevice device, VkCommandBuffer commandBuffer, Vk
 
     if (rtxSupported)
     {
-        buildMeshlets();
         //buildMeshletCones();
         createBuffer(mb, device, memoryProperties, sizeof(m_meshlets[0]) * m_meshlets.size(), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         createBuffer(mdb, device, memoryProperties, sizeof(m_meshlet_data[0]) * m_meshlet_data.size(), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);

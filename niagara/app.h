@@ -84,6 +84,7 @@ private:
     double frameGPUAvg;
 
     uint32_t drawCount = 100;
+    uint32_t triangleCount = 0;
     Buffer db;
 
     bool rtxSupported = false;
