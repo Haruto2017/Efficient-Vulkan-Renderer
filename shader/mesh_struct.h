@@ -21,13 +21,18 @@ struct Meshlet
 	uint8_t vertexCount;
 };
 
-struct MeshDraw
+struct Globals
 {
     mat4 projection;
-    // mat4 model;
+};
+
+struct MeshDraw
+{
     vec3 position;
     float scale;
     vec4 rotation;
+
+    uint commandData[7];
 };
 
 vec3 rotate(vec3 pos, vec4 q)

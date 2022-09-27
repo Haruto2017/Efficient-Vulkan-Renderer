@@ -12,8 +12,6 @@ void renderApplication::createMeshes()
 
     meshes[0].generateRenderData(device, commandBuffers[0], graphicsQueue, memProperties);
 
-    glm::mat4 projection = MakeInfReversedZProjRH(glm::radians(70.f), float(swapChainExtent.width) / float(swapChainExtent.height), 0.01f);
-
     drawCount = 3000;
     draws.resize(drawCount);
 
@@ -21,7 +19,6 @@ void renderApplication::createMeshes()
 
     for (uint32_t i = 0; i < drawCount; ++i)
     {
-        draws[i].projection = projection;
         //draws[i].model = glm::mat4(1.f, 0.f, 0.f, 0.f,
         //    0.f, 1.f, 0.f, 0.f,
         //    0.f, 0.f, 1.f, 0.f,
@@ -32,7 +29,19 @@ void renderApplication::createMeshes()
         glm::vec3 axis((float(rand()) / RAND_MAX) * 2.f - 1.f, (float(rand()) / RAND_MAX) * 2.f - 1.f, (float(rand()) / RAND_MAX) * 2.f - 1.f);
         float angle = glm::radians((float(rand()) / RAND_MAX) * 90.f);
         draws[i].rotation = glm::rotate(glm::quat(1.f, 0.f, 0.f, 0.f), angle, axis);
+
+        memset(draws[i].commandData, 0, sizeof(draws[i].commandData));
+        draws[i].commandIndirect.indexCount = uint32_t(meshes[0].m_indices.size());
+        draws[i].commandIndirect.instanceCount = 1;
+        draws[i].commandIndirectMS.taskCount = uint32_t(meshes[0].m_meshlets.size() / 32);
     }
+    Buffer scratch = {};
+    createBuffer(scratch, device, memProperties, sizeof(draws[0]) * draws.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
+    createBuffer(db, device, memProperties, sizeof(draws[0]) * draws.size(), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    uploadBuffer(device, commandBuffers[0], graphicsQueue, db, scratch, draws.data(), draws.size() * sizeof(MeshDraw));
+
+    destroyBuffer(scratch, device);
 }
 
 void renderApplication::createInstance() {

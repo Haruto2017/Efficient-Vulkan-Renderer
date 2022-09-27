@@ -421,10 +421,10 @@ void renderApplication::createGraphicsPipeline() {
 
     if (rtxSupported)
     {
-        createGenericProgram(VK_PIPELINE_BIND_POINT_GRAPHICS, { &taskShader, &meshShader, &fragShader }, sizeof(MeshDraw), rtxGraphicsProgram);
+        createGenericProgram(VK_PIPELINE_BIND_POINT_GRAPHICS, { &taskShader, &meshShader, &fragShader }, sizeof(Globals), rtxGraphicsProgram);
         createGenericGraphicsPipeline({ &taskShader, &meshShader, &fragShader }, rtxGraphicsProgram.layout, rtxGraphicsPipeline);
     }
-    createGenericProgram(VK_PIPELINE_BIND_POINT_GRAPHICS, { &vertShader, &fragShader }, sizeof(MeshDraw), graphicsProgram);
+    createGenericProgram(VK_PIPELINE_BIND_POINT_GRAPHICS, { &vertShader, &fragShader }, sizeof(Globals), graphicsProgram);
     createGenericGraphicsPipeline({ &vertShader, &fragShader }, graphicsProgram.layout, graphicsPipeline);
 
     destroyShader(fragShader);

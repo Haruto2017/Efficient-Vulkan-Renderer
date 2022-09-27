@@ -49,25 +49,28 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     scissor.extent = swapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
+
+    glm::mat4 projection = MakeInfReversedZProjRH(glm::radians(70.f), float(swapChainExtent.width) / float(swapChainExtent.height), 0.01f);
+
+    Globals globals = {};
+    globals.projection = projection;
+
     if (rtxEnabled && rtxSupported)
     {
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxGraphicsPipeline);
 
-        DescriptorInfo descriptors[] = {meshes[0].vb.buffer, meshes[0].mb.buffer, meshes[0].mdb.buffer};
+        DescriptorInfo descriptors[] = { db.buffer, meshes[0].mb.buffer, meshes[0].mdb.buffer, meshes[0].vb.buffer };
 
         vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, rtxGraphicsProgram.updateTemplate, rtxGraphicsProgram.layout, 0, descriptors);
-        for (int i = 0; i < drawCount; ++i)
-        {
-            MeshDraw& draw = draws[i];
-            vkCmdPushConstants(commandBuffer, rtxGraphicsProgram.layout, rtxGraphicsProgram.pushConstantStages, 0, sizeof(draw), &draw);
-            vkCmdDrawMeshTasksNV(commandBuffer, uint32_t(meshes[0].m_meshlets.size() / 32), 0);
-        }
+
+        vkCmdPushConstants(commandBuffer, rtxGraphicsProgram.layout, rtxGraphicsProgram.pushConstantStages, 0, sizeof(globals), &globals);
+        vkCmdDrawMeshTasksIndirectNV(commandBuffer, db.buffer, offsetof(MeshDraw, commandIndirectMS), uint32_t(draws.size()), sizeof(MeshDraw));
     }
     else
     {
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, graphicsPipeline);
 
-        DescriptorInfo descriptors[] = { meshes[0].vb.buffer };
+        DescriptorInfo descriptors[] = { db.buffer, meshes[0].vb.buffer };
 
         vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, graphicsProgram.updateTemplate, graphicsProgram.layout, 0, descriptors);
 
@@ -75,12 +78,9 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
         VkDeviceSize dummyOffset = 0;
         //vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, &dummyOffset);
         vkCmdBindIndexBuffer(commandBuffer, meshes[0].ib.buffer, dummyOffset, VK_INDEX_TYPE_UINT32);
-        for (int i = 0; i < drawCount; ++i)
-        {
-            MeshDraw& draw = draws[i];
-            vkCmdPushConstants(commandBuffer, graphicsProgram.layout, graphicsProgram.pushConstantStages, 0, sizeof(draw), &draw);
-            vkCmdDrawIndexed(commandBuffer, meshes[0].m_indices.size(), 1, 0, 0, 0);
-        }
+
+        vkCmdPushConstants(commandBuffer, graphicsProgram.layout, graphicsProgram.pushConstantStages, 0, sizeof(globals), &globals);
+        vkCmdDrawIndexedIndirect(commandBuffer, db.buffer, offsetof(MeshDraw, commandIndirect), uint32_t(draws.size()), sizeof(MeshDraw));
     }
 
     vkCmdEndRenderPass(commandBuffer);

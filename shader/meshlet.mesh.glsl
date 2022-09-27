@@ -7,6 +7,8 @@
 #extension GL_EXT_shader_explicit_arithmetic_types: require
 #extension GL_NV_mesh_shader: require
 
+#extension GL_ARB_shader_draw_parameters : require
+
 #extension GL_GOOGLE_include_directive: require
 
 #include "mesh_struct.h"
@@ -16,12 +18,12 @@ layout(triangles, max_vertices = 64, max_primitives = MESHLETTRICOUNT) out;
 
 layout(push_constant) uniform block
 {
-    MeshDraw meshDraw;
+    Globals globals;
 };
 
-layout(binding = 0) buffer readonly Vertices
+layout(binding = 0) buffer readonly Draws
 {
-    Vertex vertices[];
+    MeshDraw draws[];
 };
 
 layout(binding = 1) buffer readonly Meshlets
@@ -32,6 +34,11 @@ layout(binding = 1) buffer readonly Meshlets
 layout(binding = 2) buffer readonly MeshletData
 {
     uint meshletData[];
+};
+
+layout(binding = 3) buffer readonly Vertices
+{
+    Vertex vertices[];
 };
 
 in taskNV block 
@@ -81,7 +88,7 @@ void main() {
         vec3 inNormal = vec3(int(v.nx), int(v.ny), int(v.nz)) / 127.0 - 1.0;
         vec2 inTexCoord  = vec2(v.tu, v.tv);
 
-        gl_MeshVerticesNV[i].gl_Position = meshDraw.projection * vec4(rotate(inPosition, meshDraw.rotation) * meshDraw.scale + meshDraw.position, 1.0);
+        gl_MeshVerticesNV[i].gl_Position = globals.projection * vec4(rotate(inPosition, draws[gl_DrawIDARB].rotation) * draws[gl_DrawIDARB].scale + draws[gl_DrawIDARB].position, 1.0);
         fragColor[i] = normalize(inNormal) * 0.5 + 0.5;
 
     #if DEBUG

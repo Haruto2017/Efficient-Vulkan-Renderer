@@ -1,6 +1,6 @@
 #include "app.h"
 
-bool rtxSwitch = false;
+bool meshShadingSwitch = false;
 
 void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
@@ -15,7 +15,7 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
     {
         if (key == GLFW_KEY_R)
         {
-            rtxSwitch = !rtxSwitch;
+            meshShadingSwitch = !meshShadingSwitch;
         }
     }
 }
@@ -63,13 +63,14 @@ void renderApplication::initVulkan() {
 
 void renderApplication::mainLoop() {
     while (!glfwWindowShouldClose(window)) {
-        rtxEnabled = rtxSwitch;
+        rtxEnabled = meshShadingSwitch;
         double frameCPUBegin = glfwGetTime() * 1000;
         glfwPollEvents();
         drawFrame();
         double frameCPUEnd = glfwGetTime() * 1000;
         frameCPUAvg = frameCPUAvg * 0.95 + (frameCPUEnd - frameCPUBegin) * 0.05;
-        double trianglesPerSec = double(drawCount) * double(meshes[0].m_indices.size() / 3) / double(frameGPUAvg * 1e-3);
+        double trianglesPerSec = frameGPUAvg > 0.f ? double(drawCount) * double(meshes[0].m_indices.size() / 3) / double(frameGPUAvg * 1e-3) : 0.f;
+        double meshPerSec = frameGPUAvg > 0.f ? double(drawCount) / double(frameGPUAvg * 1e-3) : 0.f;
         char title[256];
         sprintf(title, "cpu: %.1f ms; gpu: %.3f ms; triangles %d; meshlets %d; mesh shading %s; %.1fB tri/sec",
             frameCPUAvg, frameGPUAvg, meshes[0].m_indices.size() / 3, meshes[0].m_meshlets.size(), rtxEnabled ? "ON" : "OFF", trianglesPerSec * 1e-9);
@@ -85,6 +86,8 @@ void renderApplication::cleanup() {
     {
         meshes[i].destroyRenderData(device);
     }
+
+    destroyBuffer(db, device);
 
     destroyImage(colorTarget, device);
     destroyImage(depthTarget, device);

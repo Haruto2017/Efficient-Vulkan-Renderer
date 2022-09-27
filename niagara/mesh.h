@@ -58,13 +58,28 @@ struct alignas(16) Meshlet
 	uint8_t vertexCount;
 };
 
-struct alignas(16) MeshDraw
+struct alignas(16) Globals
 {
 	glm::mat4 projection;
+};
+
+struct alignas(16) MeshDraw
+{
 	//glm::mat4 model;
 	glm::vec3 position;
 	float scale;
 	glm::quat rotation;
+
+	union
+	{
+		uint32_t commandData[7];
+
+		struct
+		{
+			VkDrawIndexedIndirectCommand commandIndirect; // 5 * 4
+			VkDrawMeshTasksIndirectCommandNV commandIndirectMS; // 2 * 4
+		};
+	};
 };
 
 glm::mat4 MakeInfReversedZProjRH(float fovY_radians, float aspectWbyH, float zNear);

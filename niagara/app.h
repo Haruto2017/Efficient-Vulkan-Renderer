@@ -84,6 +84,7 @@ private:
     double frameGPUAvg;
 
     uint32_t drawCount = 100;
+    Buffer db;
 
     bool rtxSupported = false;
     bool rtxEnabled = false;
