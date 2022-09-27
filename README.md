@@ -9,6 +9,11 @@
 
 # Implemented Features
 
+## Geometry Rendering Optimization & GPU-based Rendering Pipeline Goals:
+    1. Minimize the amount of triangles sent to the vertex shader & (more importantly) rasterization stage
+    2. Save the number of draw calls submitted from the CPU side
+    3. Memory-cache friendly buffers & utilization
+
 * Mesh rendering with meshlet generation & optimization and mesh shader. 
 
     ![Mesh_Shader_Correct](images/Simple_Mesh_Front.png)
