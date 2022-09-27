@@ -30,10 +30,12 @@ void renderApplication::createMeshes()
         float angle = glm::radians((float(rand()) / RAND_MAX) * 90.f);
         draws[i].rotation = glm::rotate(glm::quat(1.f, 0.f, 0.f, 0.f), angle, axis);
 
+        draws[i].meshletCount = uint32_t(meshes[0].m_meshlets.size());
+
         memset(draws[i].commandData, 0, sizeof(draws[i].commandData));
         draws[i].commandIndirect.indexCount = uint32_t(meshes[0].m_indices.size());
         draws[i].commandIndirect.instanceCount = 1;
-        draws[i].commandIndirectMS.taskCount = uint32_t(meshes[0].m_meshlets.size() / 32);
+        draws[i].commandIndirectMS.taskCount = uint32_t(meshes[0].m_meshlets.size() / 32) + uint32_t(meshes[0].m_meshlets.size() % 32 ? 1 : 0);
     }
     Buffer scratch = {};
     createBuffer(scratch, device, memProperties, sizeof(draws[0]) * draws.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);

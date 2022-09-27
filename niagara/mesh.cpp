@@ -160,10 +160,10 @@ void Mesh::buildMeshlets()
         m_meshlets[i].cone_cutoff = bounds.cone_cutoff_s8;
     }
 
-    while (m_meshlets.size() % 32)
-    {
-        m_meshlets.push_back(Meshlet());
-    }
+    //while (m_meshlets.size() % 32)
+    //{
+    //    m_meshlets.push_back(Meshlet());
+    //}
 }
 
 //void Mesh::buildMeshletCones()

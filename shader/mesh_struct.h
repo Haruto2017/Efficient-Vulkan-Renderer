@@ -32,6 +32,8 @@ struct MeshDraw
     float scale;
     vec4 rotation;
 
+    uint meshletCount;
+
     uint commandData[7];
 };
 

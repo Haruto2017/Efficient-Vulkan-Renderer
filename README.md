@@ -46,6 +46,8 @@
 
 * Indirect draw command
 
-    * Draws a lot of meshes with only one draw call and an additional data buffer. The buffer contains the necessary info to give each mesh its own constants
+    * Draws a lot of meshes with only one draw call and an additional data buffer. The buffer contains the necessary info to give each mesh its own constants.
 
     ![Mesh_Draw_Indirect](images/Mesh_Draw_Indirect.png)
+
+* With 3000 meshes each with 33000 triangles, meshlet backface culling achieves 30% less rendering time per frame than traditional indexed-vertex rendering. Both with indirect drawing enabled to eliminate draw call bottleneck. 

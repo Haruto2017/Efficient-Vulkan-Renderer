@@ -70,6 +70,8 @@ struct alignas(16) MeshDraw
 	float scale;
 	glm::quat rotation;
 
+	uint32_t meshletCount;
+
 	union
 	{
 		uint32_t commandData[7];
