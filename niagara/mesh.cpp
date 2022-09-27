@@ -173,7 +173,25 @@ void Mesh::loadMesh(std::string objpath, bool buildMeshlets)
         }
     }
 
+    glm::vec3 center = glm::vec3(0);
+
+    for (auto& v : vertices)
+    {
+        center += glm::vec3(v.px, v.py, v.pz);
+    }
+
+    center /= vertices.size();
+
+    float radius = 0;
+
+    for (auto& v : vertices)
+    {
+        radius = std::max(radius, glm::distance(center, glm::vec3(v.px, v.py, v.pz)));
+    }
+
     MeshInstance mesh = {};
+    mesh.center = center;
+    mesh.radius = radius;
 
     mesh.meshletOffset = meshletOffset;
     mesh.meshletCount = meshletCount;

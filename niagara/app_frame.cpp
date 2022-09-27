@@ -12,13 +12,28 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     vkCmdResetQueryPool(commandBuffer, queryPool, 0, QUERYCOUNT);
     vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPool, 0);
 
+
+    glm::mat4 projection = MakeInfReversedZProjRH(glm::radians(70.f), float(swapChainExtent.width) / float(swapChainExtent.height), 0.01f);
+
+    float drawDistance = 50.f;
+
     {
+        glm::mat4 projectionT = glm::transpose(projection);
+        glm::vec4 frustum[6];
+        frustum[0] = projectionT[3] + projectionT[0]; // here a frustum plane is defined by p3 + p0 since x / w < -1 <=> x + w < 0 <=> (p3 + p0)*v < 0 <=> a point is outside a plane
+        frustum[1] = projectionT[3] - projectionT[0];
+        frustum[2] = projectionT[3] + projectionT[1];
+        frustum[3] = projectionT[3] - projectionT[1];
+        frustum[4] = projectionT[3] - projectionT[2]; // watch for reversed-z
+        frustum[5] = glm::vec4(0.f, 0.f, -1.f, drawDistance);
+
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, drawcmdPipeline);
 
         DescriptorInfo descriptors[] = { db.buffer, dcb.buffer };
 
         vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, drawcmdProgram.updateTemplate, drawcmdProgram.layout, 0, descriptors);
 
+        vkCmdPushConstants(commandBuffer, drawcmdProgram.layout, drawcmdProgram.pushConstantStages, 0, sizeof(glm::vec4) * 6, &frustum);
         vkCmdDispatch(commandBuffer, uint32_t((draws.size() + 31) / 32), 1, 1);
 
         VkBufferMemoryBarrier cmdEndBarrier = bufferBarrier(dcb.buffer, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_INDIRECT_COMMAND_READ_BIT);
@@ -61,9 +76,6 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     scissor.offset = { 0, 0 };
     scissor.extent = swapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
-
-
-    glm::mat4 projection = MakeInfReversedZProjRH(glm::radians(70.f), float(swapChainExtent.width) / float(swapChainExtent.height), 0.01f);
 
     Globals globals = {};
     globals.projection = projection;

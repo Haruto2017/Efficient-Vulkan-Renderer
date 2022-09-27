@@ -70,6 +70,9 @@ struct alignas(16) MeshDraw
 	float scale;
 	glm::quat rotation;
 
+	glm::vec3 center;
+	float radius;
+
 	uint32_t vertexOffset;
 	uint32_t indexOffset;
 	uint32_t indexCount;
@@ -85,6 +88,9 @@ struct MeshDrawCommand
 
 struct MeshInstance
 {
+	glm::vec3 center;
+	float radius;
+
 	uint32_t meshletOffset;
 	uint32_t meshletCount;
 

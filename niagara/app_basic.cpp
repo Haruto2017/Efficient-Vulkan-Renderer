@@ -6,17 +6,17 @@ void renderApplication::createMeshes()
     meshes[0].rtxSupported = rtxSupported;
     //meshes[0].loadMesh("..\\extern\\common-3d-test-models\\data\\xyzrgb_dragon.obj");
     meshes[0].loadMesh("..\\kitten.obj", rtxSupported);
-    meshes[0].loadMesh("..\\extern\\common-3d-test-models\\data\\suzanne.obj", rtxSupported);
+    //meshes[0].loadMesh("..\\extern\\common-3d-test-models\\data\\suzanne.obj", rtxSupported);
 
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
 
     meshes[0].generateRenderData(device, commandBuffers[0], graphicsQueue, memProperties);
 
-    drawCount = 3000;
+    drawCount = 100000;
     draws.resize(drawCount);
 
-    srand(std::time(nullptr));
+    srand(32);
 
     for (uint32_t i = 0; i < drawCount; ++i)
     {
@@ -26,12 +26,15 @@ void renderApplication::createMeshes()
         //    0.f, 1.f, 0.f, 0.f,
         //    0.f, 0.f, 1.f, 0.f,
         //    (float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f, 1.f);
-        draws[i].position = glm::vec3((float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f);
+        draws[i].position = glm::vec3((float(rand()) / RAND_MAX) * 100.f - 50.f, (float(rand()) / RAND_MAX) * 100.f - 50.f, (float(rand()) / RAND_MAX) * 100.f - 50.f);
         draws[i].scale = meshIndex == 1 ? (float(rand()) / RAND_MAX) *  0.3f + 0.4f : (float(rand()) / RAND_MAX) + 1.f;
 
         glm::vec3 axis((float(rand()) / RAND_MAX) * 2.f - 1.f, (float(rand()) / RAND_MAX) * 2.f - 1.f, (float(rand()) / RAND_MAX) * 2.f - 1.f);
         float angle = glm::radians((float(rand()) / RAND_MAX) * 90.f);
         draws[i].rotation = glm::rotate(glm::quat(1.f, 0.f, 0.f, 0.f), angle, axis);
+
+        draws[i].center = mesh.center;
+        draws[i].radius = mesh.radius;
 
         draws[i].indexCount = uint32_t(mesh.indexCount);
         draws[i].indexOffset = uint32_t(mesh.indexOffset);

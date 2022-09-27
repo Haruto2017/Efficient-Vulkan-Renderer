@@ -44,15 +44,16 @@ void main() {
 
 #if CULL
     bool accept = false;
-    if (mi < draws[gl_DrawIDARB].meshletOffset + draws[gl_DrawIDARB].meshletCount)
-    {
-        vec3 center = rotate(meshlets[mi].center, draws[gl_DrawIDARB].rotation) * draws[gl_DrawIDARB].scale + draws[gl_DrawIDARB].position;
-        float radius = meshlets[mi].radius * draws[gl_DrawIDARB].scale;
-        vec3 cone_axis = rotate(vec3(int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0 ), draws[gl_DrawIDARB].rotation);
-        float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
 
-        accept = !coneCull(center, radius, cone_axis, meshlets[mi].cone_cutoff, vec3(0, 0, 0));
-    }
+	if (mi < draws[gl_DrawIDARB].meshletOffset + draws[gl_DrawIDARB].meshletCount)
+	{
+		vec3 center = rotate(meshlets[mi].center, draws[gl_DrawIDARB].rotation) * draws[gl_DrawIDARB].scale + draws[gl_DrawIDARB].position;
+		float radius = meshlets[mi].radius * draws[gl_DrawIDARB].scale;
+		vec3 cone_axis = rotate(vec3(int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0), draws[gl_DrawIDARB].rotation);
+		float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
+
+		accept = !coneCull(center, radius, cone_axis, cone_cutoff, vec3(0, 0, 0));
+	}
 
     uvec4 ballot = subgroupBallot(accept);
     uint index = subgroupBallotExclusiveBitCount(ballot);
