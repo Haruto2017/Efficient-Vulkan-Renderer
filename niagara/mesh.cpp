@@ -171,6 +171,11 @@ void Mesh::loadMesh(std::string objpath, bool buildMeshlets)
             m_meshlets[trueOffset].cone_axis[2] = bounds.cone_axis_s8[2];
             m_meshlets[trueOffset].cone_cutoff = bounds.cone_cutoff_s8;
         }
+
+        while (m_meshlets.size() % 32)
+        {
+            m_meshlets.push_back(Meshlet());
+        }
     }
 
     glm::vec3 center = glm::vec3(0);

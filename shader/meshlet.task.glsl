@@ -34,26 +34,21 @@ layout(binding = 1) buffer readonly Meshlets
 
 bool coneCull(vec3 center, float radius, vec3 cone_axis, float cone_cutoff , vec3 camera_position)
 {
-    return dot(center - camera_position, cone_axis) > cone_cutoff * length(center - camera_position) + radius;
+    return dot(center - camera_position, cone_axis) >= cone_cutoff * length(center - camera_position) + radius;
 }
 
 void main() {
     uint mgi = gl_WorkGroupID.x;
     uint ti = gl_LocalInvocationID.x;
-    uint mi = mgi * 32 + ti + draws[gl_DrawIDARB].meshletOffset;
+    uint mi = mgi * 32 + ti;
 
 #if CULL
-    bool accept = false;
+    vec3 center = rotate(meshlets[mi].center, draws[gl_DrawIDARB].rotation) * draws[gl_DrawIDARB].scale + draws[gl_DrawIDARB].position;
+    float radius = meshlets[mi].radius * draws[gl_DrawIDARB].scale;
+    vec3 cone_axis = rotate(vec3(int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0), draws[gl_DrawIDARB].rotation);
+    float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
 
-	if (mi < draws[gl_DrawIDARB].meshletOffset + draws[gl_DrawIDARB].meshletCount)
-	{
-		vec3 center = rotate(meshlets[mi].center, draws[gl_DrawIDARB].rotation) * draws[gl_DrawIDARB].scale + draws[gl_DrawIDARB].position;
-		float radius = meshlets[mi].radius * draws[gl_DrawIDARB].scale;
-		vec3 cone_axis = rotate(vec3(int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0), draws[gl_DrawIDARB].rotation);
-		float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
-
-		accept = !coneCull(center, radius, cone_axis, cone_cutoff, vec3(0, 0, 0));
-	}
+    bool accept = !coneCull(center, radius, cone_axis, cone_cutoff, vec3(0, 0, 0));
 
     uvec4 ballot = subgroupBallot(accept);
     uint index = subgroupBallotExclusiveBitCount(ballot);
@@ -74,7 +69,7 @@ void main() {
 
     if (ti == 0)
     {
-        gl_TaskCountNV = min(32, draws[gl_DrawIDARB].meshletOffset + draws[gl_DrawIDARB].meshletCount - mgi * 32);
+        gl_TaskCountNV = 32;
     }
 #endif
 }

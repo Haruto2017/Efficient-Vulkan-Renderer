@@ -17,7 +17,7 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
 
     glm::mat4 projection = MakeInfReversedZProjRH(glm::radians(70.f), float(swapChainExtent.width) / float(swapChainExtent.height), 0.01f);
 
-    float drawDistance = 50.f;
+    float drawDistance = 100.f;
 
     {
         if (queryEnabled)

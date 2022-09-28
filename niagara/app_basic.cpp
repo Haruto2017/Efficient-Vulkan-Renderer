@@ -6,7 +6,7 @@ void renderApplication::createMeshes()
     meshes[0].rtxSupported = rtxSupported;
     //meshes[0].loadMesh("..\\extern\\common-3d-test-models\\data\\xyzrgb_dragon.obj");
     meshes[0].loadMesh("..\\kitten.obj", rtxSupported);
-    //meshes[0].loadMesh("..\\extern\\common-3d-test-models\\data\\suzanne.obj", rtxSupported);
+    meshes[0].loadMesh("..\\extern\\common-3d-test-models\\data\\suzanne.obj", rtxSupported);
 
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
