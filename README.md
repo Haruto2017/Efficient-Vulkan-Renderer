@@ -46,8 +46,28 @@
 
 * Indirect draw command
 
-    * Draws a lot of meshes with only one draw call and an additional data buffer. The buffer contains the necessary info to give each mesh its own constants.
+    * Draws a lot of meshes with only one draw call and an additional draw command data buffer. The buffer contains the necessary info to give each mesh its own draw command & optional constants.
 
     ![Mesh_Draw_Indirect](images/Mesh_Draw_Indirect.png)
 
 * With 3000 meshes each with 33000 triangles, meshlet backface culling achieves 30% less rendering time per frame than traditional indexed-vertex rendering. Both with indirect drawing enabled to eliminate draw call bottleneck. 
+
+* Frustum Culling
+
+    * Frustum culling is done by determining if a mesh is outside the frustum defined by a projection matrix. The six planes of the frustum can be found as such:
+        * For example on x-axis, projection matrix confines a **projected point** (x, y, z, w) to a clip space of 
+        
+            $-1 < x / w < 1 <=> -w < x < w <=> x + w > 0 \quad and \quad x - w < 0 $
+        
+            Suppose the original point is v and the four rows of projection matrix are p1, p2, p3, p4, then 
+
+            $x = dot(p1, v) \quad and \quad w = dot(p4, v)$
+         
+            $ x + w > 0 <=> dot(p1 + p4, v) > 0$
+
+            This inequality also means that if a plane is defined by $(p1 + p4)$ , then v is in the positive half space of the plane. Here we have successfully found a frustum plane. Similar process applies to all planes.
+        * After we have all frustum planes found, a bounding sphere is outside the frustum space if it is outside any of the six plane. 
+
+* After frustum culling is implemented for both mesh shading pipeline and verter shading pipeline, performance significantly increases for 10+ times but performance gap is brought closer to 10% for the same test environment. The reduction in triangle count partially resolved the bottleneck in rasterization stage for vertex shading pipeline. 
+
+* Maybe a frustum culling of larger chunks in the space acceleration structures such as bvh can be first done on the CPU. And the meshes left in the remaining chunks can be further culled in GPU to maximize performance.
