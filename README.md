@@ -68,6 +68,6 @@
             This inequality also means that if a plane is defined by $(p1 + p4)$ , then v is in the positive half space of the plane. Here we have successfully found a frustum plane. Similar process applies to all planes.
         * After we have all frustum planes found, a bounding sphere is outside the frustum space if it is outside any of the six plane. 
 
-* After frustum culling is implemented for both mesh shading pipeline and verter shading pipeline, performance significantly increases for 10+ times but performance gap is brought closer to 10% for the same test environment. The reduction in triangle count partially resolved the bottleneck in rasterization stage for vertex shading pipeline. 
+* After frustum culling is implemented for both mesh shading pipeline and verter shading pipeline, performance for both significantly increases for 10+ times but performance gap is brought closer to 10% for the same test environment. The reduction in triangle count partially resolved the bottleneck in rasterization stage for vertex shading pipeline. 
 
 * Maybe a frustum culling of larger chunks in the space acceleration structures such as bvh can be first done on the CPU. And the meshes left in the remaining chunks can be further culled in GPU to maximize performance.
