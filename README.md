@@ -66,6 +66,7 @@
             $ x + w > 0 <=> dot(p1 + p4, v) > 0$
 
             This inequality also means that if a plane is defined by $(p1 + p4)$ , then v is in the positive half space of the plane. Here we have successfully found a frustum plane. Similar process applies to all planes.
+        * Special case : remember to normalize the plane so it has a unit length normal
         * After we have all frustum planes found, a bounding sphere is outside the frustum space if it is outside any of the six plane. 
         * This simple approach can have false positive as can be seen on [Eric's blog](https://lxjk.github.io/2018/03/25/Improve-Tile-based-Light-Culling-with-Spherical-sliced-Cone.html#_the_problem_of_sphere_frustum_test)
 

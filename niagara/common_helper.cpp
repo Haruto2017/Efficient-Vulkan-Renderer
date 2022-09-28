@@ -218,3 +218,8 @@ VkBufferMemoryBarrier bufferBarrier(VkBuffer buffer, VkAccessFlags srcAccessMask
 
 	return result;
 }
+
+glm::vec4 normalizePlane(glm::vec4 p)
+{
+	return p / glm::length(glm::vec3(p));
+}

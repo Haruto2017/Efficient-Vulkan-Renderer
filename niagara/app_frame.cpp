@@ -25,13 +25,17 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
             vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
         }
         glm::mat4 projectionT = glm::transpose(projection);
-        glm::vec4 frustum[6];
-        frustum[0] = projectionT[3] + projectionT[0]; // here a frustum plane is defined by p3 + p0 since x / w < -1 <=> x + w < 0 <=> (p3 + p0)*v < 0 <=> a point is outside a plane
-        frustum[1] = projectionT[3] - projectionT[0];
-        frustum[2] = projectionT[3] + projectionT[1];
-        frustum[3] = projectionT[3] - projectionT[1];
-        frustum[4] = projectionT[3] - projectionT[2]; // watch for reversed-z
-        frustum[5] = glm::vec4(0.f, 0.f, -1.f, drawDistance);
+        glm::vec4 frustum[6] = {};
+
+        if (cullEnabled)
+        {
+            frustum[0] = normalizePlane(projectionT[3] + projectionT[0]); // here a frustum plane is defined by p3 + p0 since x / w < -1 <=> x + w < 0 <=> (p3 + p0)*v < 0 <=> a point is outside a plane
+            frustum[1] = normalizePlane(projectionT[3] - projectionT[0]);
+            frustum[2] = normalizePlane(projectionT[3] + projectionT[1]);
+            frustum[3] = normalizePlane(projectionT[3] - projectionT[1]);
+            frustum[4] = normalizePlane(projectionT[3] - projectionT[2]); // watch for reversed-z
+            frustum[5] = glm::vec4(0.f, 0.f, -1.f, drawDistance);
+        }
 
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, drawcmdPipeline);
 

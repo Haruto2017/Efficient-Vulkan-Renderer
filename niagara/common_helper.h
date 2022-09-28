@@ -113,4 +113,6 @@ VkImageMemoryBarrier imageBarrier(VkImage image, VkAccessFlags srcAccessMask, Vk
 
 VkBufferMemoryBarrier bufferBarrier(VkBuffer buffer, VkAccessFlags srcAccessMask, VkAccessFlags dstAccessMask);
 
+glm::vec4 normalizePlane(glm::vec4 p);
+
 #endif

@@ -99,6 +99,8 @@ private:
     bool rtxSupported = false;
     bool rtxEnabled = false;
 
+    bool cullEnabled = false;
+
     void initWindow();
 
     static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
