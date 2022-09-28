@@ -9,15 +9,21 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
         throw std::runtime_error("failed to begin recording command buffer!");
     }
 
-    vkCmdResetQueryPool(commandBuffer, queryPool, 0, QUERYCOUNT);
-    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPool, 0);
-
+    if (queryEnabled)
+    {
+        vkCmdResetQueryPool(commandBuffer, queryPool, 0, QUERYCOUNT);
+        vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 0);
+    }
 
     glm::mat4 projection = MakeInfReversedZProjRH(glm::radians(70.f), float(swapChainExtent.width) / float(swapChainExtent.height), 0.01f);
 
     float drawDistance = 50.f;
 
     {
+        if (queryEnabled)
+        {
+            vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
+        }
         glm::mat4 projectionT = glm::transpose(projection);
         glm::vec4 frustum[6];
         frustum[0] = projectionT[3] + projectionT[0]; // here a frustum plane is defined by p3 + p0 since x / w < -1 <=> x + w < 0 <=> (p3 + p0)*v < 0 <=> a point is outside a plane
@@ -38,6 +44,10 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
 
         VkBufferMemoryBarrier cmdEndBarrier = bufferBarrier(dcb.buffer, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_INDIRECT_COMMAND_READ_BIT);
         vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, 0, 1, &cmdEndBarrier, 0, 0);
+        if (queryEnabled)
+        {
+            vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 3);
+        }
     }
 
     VkImageMemoryBarrier renderBeginBarriers[] =
@@ -129,7 +139,10 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     VkImageMemoryBarrier presentBarrier = imageBarrier(swapChainImages[imageIndex], VK_ACCESS_TRANSFER_WRITE_BIT, 0, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &presentBarrier);
 
-    vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_ALL_COMMANDS_BIT, queryPool, 1);
+    if (queryEnabled)
+    {
+        vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 1);
+    }
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record command buffer!");
@@ -238,16 +251,20 @@ void renderApplication::drawFrame() {
         createImage(depthTarget, device, memProperties, swapChainExtent.width, swapChainExtent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
 
         targetFB = createFramebuffer(device, renderPass, colorTarget.imageView, depthTarget.imageView, swapChainExtent.width, swapChainExtent.height);
+        return;
     }
     else if (result != VK_SUCCESS) {
         throw std::runtime_error("failed to present swap chain image!");
     }
 
-    if (vkGetQueryPoolResults(device, queryPool, 0,
-        sizeof(queryResults) / sizeof(queryResults[0]), sizeof(queryResults), queryResults, sizeof(queryResults[0]), VK_QUERY_RESULT_64_BIT) != VK_NOT_READY)
+    if (queryEnabled)
     {
+        vkGetQueryPoolResults(device, queryPool, 0,
+            sizeof(queryResults) / sizeof(queryResults[0]), sizeof(queryResults), queryResults, sizeof(queryResults[0]), VK_QUERY_RESULT_WAIT_BIT | VK_QUERY_RESULT_64_BIT);
+
         frameGPUBegin = double(queryResults[0]) * timestampPeriod * 1e-6;
         frameGPUEnd = double(queryResults[1]) * timestampPeriod * 1e-6;
         frameGPUAvg = frameGPUAvg * 0.95 + (frameGPUEnd - frameGPUBegin) * 0.05;
+        cullGPUTime = double(queryResults[3] - queryResults[2]) * timestampPeriod * 1e-6;
     }
 }

@@ -72,3 +72,13 @@
 * After frustum culling is implemented for both mesh shading pipeline and verter shading pipeline, performance for both significantly increases for 10+ times but performance gap is brought closer to 10% for the same test environment. The reduction in triangle count partially resolved the bottleneck in rasterization stage for vertex shading pipeline. 
 
 * Maybe a frustum culling of larger chunks in the space acceleration structures such as bvh can be first done on the CPU. And the meshes left in the remaining chunks can be further culled in GPU to maximize performance.
+
+* Results with performance measuring with vulkan query pool
+
+    * Traditional vertex shading pipeline with indirect submission & Frustum Culling
+
+    ![No Mesh Shading](images/GPU_FRUSTUM_CULLING_WITH_QUERY.png)
+
+    * Mesh shading pipeline with indirect submission & Frustum Culling
+
+    ![Mesh Shading](images/GPU_FRUSTUM_CULLING_WITH_QUERY_AND_MESH_SHADING.png)

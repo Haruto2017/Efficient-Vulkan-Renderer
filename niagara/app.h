@@ -80,13 +80,16 @@ private:
     std::vector<MeshDraw> draws;
 
     VkQueryPool queryPool;
-    uint64_t queryResults[2];
+    uint64_t queryResults[4];
+    bool queryEnabled = false;
     float timestampPeriod;
     double frameGPUBegin;
     double frameGPUEnd;
 
     double frameCPUAvg;
     double frameGPUAvg;
+
+    double cullGPUTime;
 
     uint32_t drawCount = 100;
     uint32_t triangleCount = 0;
