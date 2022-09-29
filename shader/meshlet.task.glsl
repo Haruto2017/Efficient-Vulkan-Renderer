@@ -22,12 +22,17 @@ out taskNV block
     uint meshletIndices[32];
 };
 
-layout(binding = 0) buffer readonly Draws
+layout(binding = 0) buffer readonly DrawCommands
+{
+    MeshDrawCommand drawCommands[];
+};
+
+layout(binding = 1) buffer readonly Draws
 {
     MeshDraw draws[];
 };
 
-layout(binding = 1) buffer readonly Meshlets
+layout(binding = 2) buffer readonly Meshlets
 {
     Meshlet meshlets[];
 };
@@ -42,10 +47,12 @@ void main() {
     uint ti = gl_LocalInvocationID.x;
     uint mi = mgi * 32 + ti;
 
+    MeshDraw meshDraw = draws[drawCommands[gl_DrawIDARB].drawId];
+
 #if CULL
-    vec3 center = rotate(meshlets[mi].center, draws[gl_DrawIDARB].rotation) * draws[gl_DrawIDARB].scale + draws[gl_DrawIDARB].position;
-    float radius = meshlets[mi].radius * draws[gl_DrawIDARB].scale;
-    vec3 cone_axis = rotate(vec3(int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0), draws[gl_DrawIDARB].rotation);
+    vec3 center = rotate(meshlets[mi].center, meshDraw.rotation) * meshDraw.scale + meshDraw.position;
+    float radius = meshlets[mi].radius * meshDraw.scale;
+    vec3 cone_axis = rotate(vec3(int(meshlets[mi].cone_axis[0]) / 127.0, int(meshlets[mi].cone_axis[1]) / 127.0, int(meshlets[mi].cone_axis[2]) / 127.0), meshDraw.rotation);
     float cone_cutoff = int(meshlets[mi].cone_cutoff) / 127.0;
 
     bool accept = !coneCull(center, radius, cone_axis, cone_cutoff, vec3(0, 0, 0));

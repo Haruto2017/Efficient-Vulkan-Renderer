@@ -82,6 +82,7 @@ struct alignas(16) MeshDraw
 
 struct MeshDrawCommand
 {
+	uint32_t drawId;
 	VkDrawIndexedIndirectCommand indirect; // 5 * 4
 	VkDrawMeshTasksIndirectCommandNV indirectMS; // 2 * 4
 };

@@ -15,12 +15,17 @@ layout(push_constant) uniform block
     Globals globals;
 };
 
-layout(binding = 0) buffer readonly Draws
+layout(binding = 0) buffer readonly DrawCommands
+{
+    MeshDrawCommand drawCommands[];
+};
+
+layout(binding = 1) buffer readonly Draws
 {
     MeshDraw draws[];
 };
 
-layout(binding = 1) buffer readonly Vertices
+layout(binding = 2) buffer readonly Vertices
 {
     Vertex vertices[];
 };
@@ -34,7 +39,7 @@ layout(location = 0) out vec3 fragColor;
 void main() {
     Vertex v = vertices[gl_VertexIndex];
 
-    MeshDraw meshDraw = draws[gl_DrawIDARB];
+    MeshDraw meshDraw = draws[drawCommands[gl_DrawIDARB].drawId];
 
     vec3 inPosition = vec3(v.vx, v.vy, v.vz);
     vec3 inNormal = vec3(int(v.nx), int(v.ny), int(v.nz)) / 127.0 - 1.0;

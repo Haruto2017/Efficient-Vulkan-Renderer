@@ -101,6 +101,7 @@ void renderApplication::cleanup() {
 
     destroyBuffer(db, device);
     destroyBuffer(dcb, device);
+    destroyBuffer(dccb, device);
 
     destroyImage(colorTarget, device);
     destroyImage(depthTarget, device);

@@ -6,6 +6,7 @@
 #extension GL_EXT_shader_8bit_storage: require
 
 #extension GL_GOOGLE_include_directive: require
+#extension GL_KHR_shader_subgroup_ballot: require
 
 #include "mesh_struct.h"
 
@@ -26,6 +27,11 @@ layout(binding = 1) buffer writeonly DrawCommands
     MeshDrawCommand drawCommands[];
 };
 
+layout(binding = 2) buffer DrawCommandCount
+{
+    uint drawCommandCount;
+};
+
 void main()
 {
     uint gi = gl_WorkGroupID.x;
@@ -44,12 +50,33 @@ void main()
     }
     #endif
 
+    uvec4 ballot = subgroupBallot(visible);
+    uint count = subgroupBallotBitCount(ballot);
 
-    drawCommands[di].indexCount = draws[di].indexCount;
-    drawCommands[di].instanceCount = visible ? 1 : 0;
-    drawCommands[di].firstIndex = draws[di].indexOffset;
-    drawCommands[di].vertexOffset = draws[di].vertexOffset;
-    drawCommands[di].firstInstance = 0;
-    drawCommands[di].taskCount = visible ? ((draws[di].meshletCount + 31) / 32) : 0;
-    drawCommands[di].firstTask = draws[di].meshletOffset / 32;
+    if (count == 0)
+    {
+        return;
+    }
+
+    uint dcgi = 0;
+
+    if (ti == 0)
+    {
+        dcgi = atomicAdd(drawCommandCount, count);
+    }
+    
+    uint index = subgroupBallotExclusiveBitCount(ballot);
+    uint dci = subgroupBroadcastFirst(dcgi) + index;
+
+    if (visible)
+    {
+        drawCommands[dci].drawId = di;
+        drawCommands[dci].indexCount = draws[di].indexCount;
+        drawCommands[dci].instanceCount = visible ? 1 : 0;
+        drawCommands[dci].firstIndex = draws[di].indexOffset;
+        drawCommands[dci].vertexOffset = draws[di].vertexOffset;
+        drawCommands[dci].firstInstance = 0;
+        drawCommands[dci].taskCount = visible ? ((draws[di].meshletCount + 31) / 32) : 0;
+        drawCommands[dci].firstTask = draws[di].meshletOffset / 32;
+    }
 }

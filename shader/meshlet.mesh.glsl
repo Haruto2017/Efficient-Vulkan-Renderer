@@ -21,22 +21,27 @@ layout(push_constant) uniform block
     Globals globals;
 };
 
-layout(binding = 0) buffer readonly Draws
+layout(binding = 0) buffer readonly DrawCommands
+{
+    MeshDrawCommand drawCommands[];
+};
+
+layout(binding = 1) buffer readonly Draws
 {
     MeshDraw draws[];
 };
 
-layout(binding = 1) buffer readonly Meshlets
+layout(binding = 2) buffer readonly Meshlets
 {
     Meshlet meshlets[];
 };
 
-layout(binding = 2) buffer readonly MeshletData
+layout(binding = 3) buffer readonly MeshletData
 {
     uint meshletData[];
 };
 
-layout(binding = 3) buffer readonly Vertices
+layout(binding = 4) buffer readonly Vertices
 {
     Vertex vertices[];
 };
@@ -74,6 +79,8 @@ void main() {
     uint vertexOffset = dataOffset;
     uint indexOffset = dataOffset + vertexCount;
 
+    MeshDraw meshDraw = draws[drawCommands[gl_DrawIDARB].drawId];
+
     #if DEBUG
         uint mhash = hash(mi);
         vec3 mcolor = vec3(float((mhash & 255)), float((mhash >> 8) & 255), float((mhash >> 16) & 255)) / 255.f;
@@ -81,14 +88,14 @@ void main() {
 
     for (uint i = ti; i < vertexCount; i += 32)
     {
-        uint vi = meshletData[vertexOffset + i] + draws[gl_DrawIDARB].vertexOffset;
+        uint vi = meshletData[vertexOffset + i] + meshDraw.vertexOffset;
         Vertex v = vertices[vi];
 
         vec3 inPosition = vec3(v.vx, v.vy, v.vz);
         vec3 inNormal = vec3(int(v.nx), int(v.ny), int(v.nz)) / 127.0 - 1.0;
         vec2 inTexCoord  = vec2(v.tu, v.tv);
 
-        gl_MeshVerticesNV[i].gl_Position = globals.projection * vec4(rotate(inPosition, draws[gl_DrawIDARB].rotation) * draws[gl_DrawIDARB].scale + draws[gl_DrawIDARB].position, 1.0);
+        gl_MeshVerticesNV[i].gl_Position = globals.projection * vec4(rotate(inPosition, meshDraw.rotation) * meshDraw.scale + meshDraw.position, 1.0);
         fragColor[i] = normalize(inNormal) * 0.5 + 0.5;
 
     #if DEBUG

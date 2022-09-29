@@ -14,6 +14,8 @@ void renderApplication::createMeshes()
     meshes[0].generateRenderData(device, commandBuffers[0], graphicsQueue, memProperties);
 
     drawCount = 100000;
+    drawCount = (drawCount + 31) & ~31;
+
     draws.resize(drawCount);
 
     srand(32);
@@ -55,6 +57,8 @@ void renderApplication::createMeshes()
     createBuffer(db, device, memProperties, sizeof(draws[0]) * draws.size(), VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     createBuffer(dcb, device, memProperties, sizeof(MeshDrawCommand) * draws.size(), VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    createBuffer(dccb, device, memProperties, 4, VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
 
     uploadBuffer(device, commandBuffers[0], graphicsQueue, db, scratch, draws.data(), draws.size() * sizeof(MeshDraw));
 
