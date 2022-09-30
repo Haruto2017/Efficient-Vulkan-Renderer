@@ -14,7 +14,8 @@ void renderApplication::createMeshes()
     meshes[0].generateRenderData(device, commandBuffers[0], graphicsQueue, memProperties);
 
     drawCount = 100000;
-    drawCount = (drawCount + 31) & ~31;
+    float sceneRadius = 300.f;
+    drawDistance = 300.f;
 
     draws.resize(drawCount);
 
@@ -28,7 +29,9 @@ void renderApplication::createMeshes()
         //    0.f, 1.f, 0.f, 0.f,
         //    0.f, 0.f, 1.f, 0.f,
         //    (float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f, (float(rand()) / RAND_MAX) * 40.f - 20.f, 1.f);
-        draws[i].position = glm::vec3((float(rand()) / RAND_MAX) * 100.f - 50.f, (float(rand()) / RAND_MAX) * 100.f - 50.f, (float(rand()) / RAND_MAX) * 100.f - 50.f);
+        draws[i].position[0] = (float(rand()) / RAND_MAX) * sceneRadius * 2 - sceneRadius;
+        draws[i].position[1] = (float(rand()) / RAND_MAX) * sceneRadius * 2 - sceneRadius;
+        draws[i].position[2] = (float(rand()) / RAND_MAX) * sceneRadius * 2 - sceneRadius;
         draws[i].scale = meshIndex == 1 ? (float(rand()) / RAND_MAX) *  0.3f + 0.4f : (float(rand()) / RAND_MAX) + 1.f;
 
         glm::vec3 axis((float(rand()) / RAND_MAX) * 2.f - 1.f, (float(rand()) / RAND_MAX) * 2.f - 1.f, (float(rand()) / RAND_MAX) * 2.f - 1.f);
@@ -44,7 +47,7 @@ void renderApplication::createMeshes()
         //draws[i].commandIndirect.instanceCount = 1;
         //draws[i].commandIndirect.vertexOffset = mesh.vertexOffset;
         //draws[i].commandIndirectMS.taskCount = (mesh.meshletCount + 31) / 32;
-        triangleCount += mesh.indexCount / 3;
+        triangleCount += mesh.lods[0].indexCount / 3;
     }
     Buffer scratch = {};
     createBuffer(scratch, device, memProperties, sizeof(draws[0]) * draws.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);

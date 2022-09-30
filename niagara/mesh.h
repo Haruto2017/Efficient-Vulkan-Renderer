@@ -63,6 +63,14 @@ struct alignas(16) Globals
 	glm::mat4 projection;
 };
 
+struct alignas(16) DrawCullData
+{
+	glm::vec4 frustum[6];
+	uint32_t drawCount;
+	int cullingEnabled;
+	int lodEnabled;
+};
+
 struct alignas(16) MeshDraw
 {
 	//glm::mat4 model;
@@ -81,6 +89,15 @@ struct MeshDrawCommand
 	VkDrawMeshTasksIndirectCommandNV indirectMS; // 2 * 4
 };
 
+struct MeshLod
+{
+	uint32_t indexOffset;
+	uint32_t indexCount;
+
+	uint32_t meshletOffset;
+	uint32_t meshletCount;
+};
+
 struct alignas(16) MeshInstance
 {
 	glm::vec3 center;
@@ -89,11 +106,9 @@ struct alignas(16) MeshInstance
 	uint32_t vertexOffset;
 	uint32_t vertexCount;
 
-	uint32_t indexOffset;
-	uint32_t indexCount;
+	uint32_t lodCount;
 
-	uint32_t meshletOffset;
-	uint32_t meshletCount;
+	MeshLod lods[8];
 };
 
 glm::mat4 MakeInfReversedZProjRH(float fovY_radians, float aspectWbyH, float zNear);
@@ -121,6 +136,9 @@ public:
 	// To Do: use meshlet_vertices & meshlet_indices buffers
 
 	bool rtxSupported;
+
+private:
+	size_t appendMeshlets(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const uint32_t meshletOffset);
 };
 
 #endif

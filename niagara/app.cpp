@@ -1,8 +1,9 @@
 #include "app.h"
 
-bool meshShadingSwitch = false;
+bool meshShadingSwitch = true;
 bool querySwitch = false;
-bool cullSwitch = false;
+bool cullSwitch = true;
+bool lodSwitch = true;
 
 void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
@@ -26,6 +27,10 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         if (key == GLFW_KEY_C)
         {
             cullSwitch = !cullSwitch;
+        }
+        if (key == GLFW_KEY_L)
+        {
+            lodSwitch = !lodSwitch;
         }
     }
 }
@@ -76,6 +81,7 @@ void renderApplication::mainLoop() {
         rtxEnabled = meshShadingSwitch;
         queryEnabled = querySwitch;
         cullEnabled = cullSwitch;
+        lodEnabled = lodSwitch;
         double frameCPUBegin = glfwGetTime() * 1000;
         glfwPollEvents();
         drawFrame();
@@ -84,8 +90,9 @@ void renderApplication::mainLoop() {
         double trianglesPerSec = frameGPUAvg > 0.f ? double(triangleCount) / double(frameGPUAvg * 1e-3) : 0.f;
         double meshPerSec = frameGPUAvg > 0.f ? double(drawCount) / double(frameGPUAvg * 1e-3) : 0.f;
         char title[256];
-        sprintf(title, "cpu: %.1f ms; gpu: %.3f ms (cull: %.2f ms); triangles %.1fM; meshlets %d; mesh shading %s; %.1fB tri/sec; show query %s; culling %s",
-            frameCPUAvg, frameGPUAvg, cullGPUTime, double(triangleCount) * 1e-6, meshes[0].m_meshlets.size(), rtxEnabled ? "ON" : "OFF", trianglesPerSec * 1e-9, queryEnabled ? "ON" : "OFF", cullEnabled ? "ON" : "OFF");
+        sprintf(title, "cpu: %.1f ms; gpu: %.3f ms (cull: %.2f ms); triangles %.1fM; meshlets %d; mesh shading %s; %.1fB tri/sec; show query %s; culling %s; lod %s",
+            frameCPUAvg, frameGPUAvg, cullGPUTime, double(triangleCount) * 1e-6, meshes[0].m_meshlets.size(), rtxEnabled ? "ON" : "OFF", 
+            trianglesPerSec * 1e-9, queryEnabled ? "ON" : "OFF", cullEnabled ? "ON" : "OFF", lodEnabled ? "ON" : "OFF");
         glfwSetWindowTitle(window, title);
     }
 

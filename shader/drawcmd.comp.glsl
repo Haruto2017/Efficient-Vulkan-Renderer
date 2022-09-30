@@ -1,7 +1,5 @@
 #version 460
 
-#define CULL 1
-
 #extension GL_EXT_shader_16bit_storage: require
 #extension GL_EXT_shader_8bit_storage: require
 
@@ -15,6 +13,9 @@ layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
 layout(push_constant) uniform block
 {
     vec4 frustum[6];
+    uint drawCount;
+    int cullingEnabled;
+    int lodEnabled;
 };
 
 layout(binding = 0) buffer readonly Draws
@@ -43,6 +44,11 @@ void main()
     uint ti = gl_LocalInvocationID.x;
     uint di = gi * 32 + ti;
 
+    if (di >= drawCount)
+    {
+        return;
+    }
+
     MeshInstance mesh = meshes[draws[di].meshIndex];
 
     vec3 center = rotate(mesh.center, draws[di].rotation) * draws[di].scale + draws[di].position;
@@ -50,12 +56,12 @@ void main()
 
     bool visible = true;
 
-    #if CULL
     for (int i = 0; i < 6; ++ i)
     {
         visible = visible && (dot(vec4(center, 1), frustum[i]) > -radius);
     }
-    #endif
+
+    visible = cullingEnabled == 1 ? visible : true;
 
     uvec4 ballot = subgroupBallot(visible);
     uint count = subgroupBallotBitCount(ballot);
@@ -77,13 +83,21 @@ void main()
 
     if (visible)
     {
+        float lodDistance = log2(max(1, distance(center, vec3(0)) - radius) * 5);
+        
+        uint lodIndex = clamp(int(lodDistance), 0, int(mesh.lodCount) - 1);
+
+        lodIndex = lodEnabled == 1 ? lodIndex : 0;
+
+        MeshLod lod = mesh.lods[lodIndex];
+
         drawCommands[dci].drawId = di;
-        drawCommands[dci].indexCount = mesh.indexCount;
+        drawCommands[dci].indexCount = lod.indexCount;
         drawCommands[dci].instanceCount = 1;
-        drawCommands[dci].firstIndex = mesh.indexOffset;
+        drawCommands[dci].firstIndex = lod.indexOffset;
         drawCommands[dci].vertexOffset = mesh.vertexOffset;
         drawCommands[dci].firstInstance = 0;
-        drawCommands[dci].taskCount = (mesh.meshletCount + 31) / 32;
-        drawCommands[dci].firstTask = mesh.meshletOffset / 32;
+        drawCommands[dci].taskCount = (lod.meshletCount + 31) / 32;
+        drawCommands[dci].firstTask = lod.meshletOffset / 32;
     }
 }

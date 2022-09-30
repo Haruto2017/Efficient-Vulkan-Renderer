@@ -15,9 +15,7 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
         vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 0);
     }
 
-    glm::mat4 projection = MakeInfReversedZProjRH(glm::radians(70.f), float(swapChainExtent.width) / float(swapChainExtent.height), 0.01f);
-
-    float drawDistance = 100.f;
+    glm::mat4 projection = MakeInfReversedZProjRH(glm::radians(50.f), float(swapChainExtent.width) / float(swapChainExtent.height), 0.01f);
 
     {
         if (queryEnabled)
@@ -25,17 +23,17 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
             vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 2);
         }
         glm::mat4 projectionT = glm::transpose(projection);
-        glm::vec4 frustum[6] = {};
 
-        if (cullEnabled)
-        {
-            frustum[0] = normalizePlane(projectionT[3] + projectionT[0]); // here a frustum plane is defined by p3 + p0 since x / w < -1 <=> x + w < 0 <=> (p3 + p0)*v < 0 <=> a point is outside a plane
-            frustum[1] = normalizePlane(projectionT[3] - projectionT[0]);
-            frustum[2] = normalizePlane(projectionT[3] + projectionT[1]);
-            frustum[3] = normalizePlane(projectionT[3] - projectionT[1]);
-            frustum[4] = normalizePlane(projectionT[3] - projectionT[2]); // watch for reversed-z
-            frustum[5] = glm::vec4(0.f, 0.f, -1.f, drawDistance);
-        }
+        DrawCullData cullData = {};
+        cullData.frustum[0] = normalizePlane(projectionT[3] + projectionT[0]); // here a frustum plane is defined by p3 + p0 since x / w < -1 <=> x + w < 0 <=> (p3 + p0)*v < 0 <=> a point is outside a plane
+        cullData.frustum[1] = normalizePlane(projectionT[3] - projectionT[0]);
+        cullData.frustum[2] = normalizePlane(projectionT[3] + projectionT[1]);
+        cullData.frustum[3] = normalizePlane(projectionT[3] - projectionT[1]);
+        cullData.frustum[4] = normalizePlane(projectionT[3] - projectionT[2]); // watch for reversed-z
+        cullData.frustum[5] = glm::vec4(0.f, 0.f, -1.f, drawDistance);
+        cullData.drawCount = drawCount;
+        cullData.cullingEnabled = cullEnabled;
+        cullData.lodEnabled = lodEnabled;
 
         vkCmdFillBuffer(commandBuffer, dccb.buffer, 0, 4, 0);
 
@@ -48,7 +46,7 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
 
         vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, drawcmdProgram.updateTemplate, drawcmdProgram.layout, 0, descriptors);
 
-        vkCmdPushConstants(commandBuffer, drawcmdProgram.layout, drawcmdProgram.pushConstantStages, 0, sizeof(glm::vec4) * 6, &frustum);
+        vkCmdPushConstants(commandBuffer, drawcmdProgram.layout, drawcmdProgram.pushConstantStages, 0, sizeof(DrawCullData), &cullData);
         vkCmdDispatch(commandBuffer, uint32_t((draws.size() + 31) / 32), 1, 1);
 
         VkBufferMemoryBarrier cullBarrier = bufferBarrier(dcb.buffer, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_INDIRECT_COMMAND_READ_BIT);

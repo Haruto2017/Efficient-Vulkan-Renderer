@@ -112,71 +112,12 @@ void Mesh::loadMesh(std::string objpath, bool buildMeshlets)
     meshopt_optimizeVertexCache(indices.data(), indices.data(), num_indices, num_unique_vertices);
     meshopt_optimizeVertexFetch(vertices.data(), indices.data(), num_indices, vertices.data(), num_unique_vertices, sizeof(Vertex));
 
-    uint32_t vertexOffset = uint32_t(m_vertices.size());
-    uint32_t indexOffset = uint32_t(m_indices.size());
+    MeshInstance mesh = {};
+
+    mesh.vertexOffset = uint32_t(m_vertices.size());
+    mesh.vertexCount = uint32_t(vertices.size());
 
     m_vertices.insert(m_vertices.end(), vertices.begin(), vertices.end());
-    m_indices.insert(m_indices.end(), indices.begin(), indices.end());
-
-    uint32_t meshletOffset = uint32_t(m_meshlets.size());
-    uint32_t meshletCount = 0;
-
-    if (buildMeshlets)
-    {
-        const size_t max_vertices = 64;
-        const size_t max_triangles = MESHLETTRICOUNT;
-        std::vector<meshopt_Meshlet> meshlets(meshopt_buildMeshletsBound(indices.size(), max_vertices, max_triangles));
-        std::vector<uint8_t> meshlet_triangles(meshlets.size() * max_triangles * 3);
-        std::vector<uint32_t> meshlet_vertices(meshlets.size() * max_vertices);
-
-        meshlets.resize(meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), indices.data(), indices.size(), (const float*)vertices.data(), vertices.size(), sizeof(Vertex), max_vertices, max_triangles, 1.0));
-
-        meshletCount = meshlets.size();
-
-        m_meshlets.resize(m_meshlets.size() + meshlets.size());
-
-        for (uint32_t i = 0; i < meshlets.size(); ++i)
-        {
-            uint32_t tri_offset = meshlets[i].triangle_offset;
-            uint32_t vert_offset = meshlets[i].vertex_offset;
-            size_t dataOffset = m_meshlet_data.size();
-
-            for (uint32_t j = 0; j < meshlets[i].vertex_count; ++j)
-            {
-                m_meshlet_data.push_back(meshlet_vertices[vert_offset + j]);
-            }
-
-            const uint32_t* indexGroups = reinterpret_cast<const uint32_t*>(meshlet_triangles.data() + tri_offset);
-            uint32_t indexGroupCount = (meshlets[i].triangle_count * 3 + 3) / 4;
-
-            for (uint32_t j = 0; j < indexGroupCount; ++j)
-            {
-                m_meshlet_data.push_back(indexGroups[j]);
-            }
-
-            int trueOffset = i + meshletOffset;
-
-            m_meshlets[trueOffset].dataOffset = (uint32_t)dataOffset;
-            m_meshlets[trueOffset].triangleCount = (uint8_t)meshlets[i].triangle_count;
-            m_meshlets[trueOffset].vertexCount = (uint8_t)meshlets[i].vertex_count;
-
-            meshopt_Bounds bounds = meshopt_computeMeshletBounds(meshlet_vertices.data() + vert_offset, meshlet_triangles.data() + tri_offset, meshlets[i].triangle_count, (const float*)vertices.data(), vertices.size(), sizeof(Vertex));
-            m_meshlets[trueOffset].center = glm::vec3(bounds.center[0], bounds.center[1], bounds.center[2]);
-            m_meshlets[trueOffset].radius = bounds.radius;
-            //m_meshlets[i].cone_apex = glm::vec3(bounds.cone_apex[0], bounds.cone_apex[1], bounds.cone_apex[2]);
-            //m_meshlets[i].padding = 0;
-
-            m_meshlets[trueOffset].cone_axis[0] = bounds.cone_axis_s8[0];
-            m_meshlets[trueOffset].cone_axis[1] = bounds.cone_axis_s8[1];
-            m_meshlets[trueOffset].cone_axis[2] = bounds.cone_axis_s8[2];
-            m_meshlets[trueOffset].cone_cutoff = bounds.cone_cutoff_s8;
-        }
-
-        while (m_meshlets.size() % 32)
-        {
-            m_meshlets.push_back(Meshlet());
-        }
-    }
 
     glm::vec3 center = glm::vec3(0);
 
@@ -194,18 +135,40 @@ void Mesh::loadMesh(std::string objpath, bool buildMeshlets)
         radius = std::max(radius, glm::distance(center, glm::vec3(v.px, v.py, v.pz)));
     }
 
-    MeshInstance mesh = {};
     mesh.center = center;
     mesh.radius = radius;
 
-    mesh.vertexOffset = vertexOffset;
-    mesh.vertexCount = uint32_t(vertices.size());
+    std::vector<uint32_t> lodIndices = indices;
 
-    mesh.indexOffset = indexOffset;
-    mesh.indexCount = uint32_t(indices.size());
+    while (mesh.lodCount < (sizeof(mesh.lods) / sizeof(MeshLod)))
+    {
+        MeshLod& lod = mesh.lods[mesh.lodCount++];
 
-    mesh.meshletOffset = meshletOffset;
-    mesh.meshletCount = meshletCount;
+        lod.indexOffset = uint32_t(m_indices.size());
+        lod.indexCount = uint32_t(lodIndices.size());
+
+        m_indices.insert(m_indices.end(), lodIndices.begin(), lodIndices.end());
+
+        lod.meshletOffset = uint32_t(m_meshlets.size());
+        lod.meshletCount = buildMeshlets ? uint32_t(appendMeshlets(vertices, lodIndices, lod.meshletOffset)) : 0;
+
+        if (mesh.lodCount < (sizeof(mesh.lods) / sizeof(MeshLod)))
+        {
+            size_t nextIndicesTarget = size_t(double(lodIndices.size()) * 0.75);
+            // this simplification method picks an end point for a collapsed edge. 
+            size_t nextIndices = meshopt_simplify(lodIndices.data(), lodIndices.data(), lodIndices.size(), &vertices[0].px, vertices.size(), sizeof(Vertex), nextIndicesTarget, 1e-4f);
+
+            assert(nextIndices <= lodIndices.size());
+
+            if (nextIndices == lodIndices.size())
+            {
+                break;
+            }
+
+            lodIndices.resize(nextIndices);
+            meshopt_optimizeVertexCache(lodIndices.data(), lodIndices.data(), lodIndices.size(), num_unique_vertices);
+        }
+    }
 
     m_instances.push_back(mesh);
 
@@ -213,6 +176,65 @@ void Mesh::loadMesh(std::string objpath, bool buildMeshlets)
     //{
     //    m_meshlets.push_back(Meshlet());
     //}
+}
+
+size_t Mesh::appendMeshlets(const std::vector<Vertex>& vertices, const std::vector<uint32_t>& indices, const uint32_t meshletOffset)
+{
+    const size_t max_vertices = 64;
+    const size_t max_triangles = MESHLETTRICOUNT;
+    std::vector<meshopt_Meshlet> meshlets(meshopt_buildMeshletsBound(indices.size(), max_vertices, max_triangles));
+    std::vector<uint8_t> meshlet_triangles(meshlets.size() * max_triangles * 3);
+    std::vector<uint32_t> meshlet_vertices(meshlets.size() * max_vertices);
+
+    meshlets.resize(meshopt_buildMeshlets(meshlets.data(), meshlet_vertices.data(), meshlet_triangles.data(), indices.data(), indices.size(), (const float*)vertices.data(), vertices.size(), sizeof(Vertex), max_vertices, max_triangles, 1.0));
+
+    size_t meshletCount = meshlets.size();
+
+    m_meshlets.resize(m_meshlets.size() + meshlets.size());
+
+    for (uint32_t i = 0; i < meshlets.size(); ++i)
+    {
+        uint32_t tri_offset = meshlets[i].triangle_offset;
+        uint32_t vert_offset = meshlets[i].vertex_offset;
+        size_t dataOffset = m_meshlet_data.size();
+
+        for (uint32_t j = 0; j < meshlets[i].vertex_count; ++j)
+        {
+            m_meshlet_data.push_back(meshlet_vertices[vert_offset + j]);
+        }
+
+        const uint32_t* indexGroups = reinterpret_cast<const uint32_t*>(meshlet_triangles.data() + tri_offset);
+        uint32_t indexGroupCount = (meshlets[i].triangle_count * 3 + 3) / 4;
+
+        for (uint32_t j = 0; j < indexGroupCount; ++j)
+        {
+            m_meshlet_data.push_back(indexGroups[j]);
+        }
+
+        int trueOffset = i + meshletOffset;
+
+        m_meshlets[trueOffset].dataOffset = (uint32_t)dataOffset;
+        m_meshlets[trueOffset].triangleCount = (uint8_t)meshlets[i].triangle_count;
+        m_meshlets[trueOffset].vertexCount = (uint8_t)meshlets[i].vertex_count;
+
+        meshopt_Bounds bounds = meshopt_computeMeshletBounds(meshlet_vertices.data() + vert_offset, meshlet_triangles.data() + tri_offset, meshlets[i].triangle_count, (const float*)vertices.data(), vertices.size(), sizeof(Vertex));
+        m_meshlets[trueOffset].center = glm::vec3(bounds.center[0], bounds.center[1], bounds.center[2]);
+        m_meshlets[trueOffset].radius = bounds.radius;
+        //m_meshlets[i].cone_apex = glm::vec3(bounds.cone_apex[0], bounds.cone_apex[1], bounds.cone_apex[2]);
+        //m_meshlets[i].padding = 0;
+
+        m_meshlets[trueOffset].cone_axis[0] = bounds.cone_axis_s8[0];
+        m_meshlets[trueOffset].cone_axis[1] = bounds.cone_axis_s8[1];
+        m_meshlets[trueOffset].cone_axis[2] = bounds.cone_axis_s8[2];
+        m_meshlets[trueOffset].cone_cutoff = bounds.cone_cutoff_s8;
+    }
+
+    while (m_meshlets.size() % 32)
+    {
+        m_meshlets.push_back(Meshlet());
+    }
+
+    return meshletCount;
 }
 
 //void Mesh::buildMeshletCones()

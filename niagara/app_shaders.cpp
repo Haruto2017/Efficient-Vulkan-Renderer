@@ -421,11 +421,11 @@ void renderApplication::createGraphicsPipeline() {
         {
             throw std::runtime_error("failed to create task shader");
         }
-        std::vector<char> compShaderCode = readFile("..\\compiledShader\\drawcmd.comp.spv");
-        if (!createShader(compShader, compShaderCode))
-        {
-            throw std::runtime_error("failed to create comp shader");
-        }
+    }
+    std::vector<char> compShaderCode = readFile("..\\compiledShader\\drawcmd.comp.spv");
+    if (!createShader(compShader, compShaderCode))
+    {
+        throw std::runtime_error("failed to create comp shader");
     }
 
     auto vertShaderCode = readFile("..\\compiledShader\\simple.vert.spv");
@@ -447,10 +447,11 @@ void renderApplication::createGraphicsPipeline() {
     {
         createGenericProgram(VK_PIPELINE_BIND_POINT_GRAPHICS, { &taskShader, &meshShader, &fragShader }, sizeof(Globals), rtxGraphicsProgram);
         createGenericGraphicsPipeline({ &taskShader, &meshShader, &fragShader }, pipelineCache, rtxGraphicsProgram.layout, rtxGraphicsPipeline);
-
-        createGenericProgram(VK_PIPELINE_BIND_POINT_COMPUTE, { &compShader }, 6 * sizeof(glm::vec4), drawcmdProgram);
-        createComputePipeline(pipelineCache, compShader, drawcmdProgram.layout, drawcmdPipeline);
     }
+
+    createGenericProgram(VK_PIPELINE_BIND_POINT_COMPUTE, { &compShader }, sizeof(DrawCullData), drawcmdProgram);
+    createComputePipeline(pipelineCache, compShader, drawcmdProgram.layout, drawcmdPipeline);
+
     createGenericProgram(VK_PIPELINE_BIND_POINT_GRAPHICS, { &vertShader, &fragShader }, sizeof(Globals), graphicsProgram);
     createGenericGraphicsPipeline({ &vertShader, &fragShader }, pipelineCache, graphicsProgram.layout, graphicsPipeline);
 
@@ -460,6 +461,6 @@ void renderApplication::createGraphicsPipeline() {
     {
         destroyShader(meshShader);
         destroyShader(taskShader);
-        destroyShader(compShader);
     }
+    destroyShader(compShader);
 }

@@ -103,6 +103,9 @@ private:
     bool rtxEnabled = false;
 
     bool cullEnabled = false;
+    bool lodEnabled = false;
+
+    float drawDistance;
 
     void initWindow();
 
