@@ -198,14 +198,14 @@ void Mesh::loadMesh(std::string objpath, bool buildMeshlets)
     mesh.center = center;
     mesh.radius = radius;
 
-    mesh.meshletOffset = meshletOffset;
-    mesh.meshletCount = meshletCount;
+    mesh.vertexOffset = vertexOffset;
+    mesh.vertexCount = uint32_t(vertices.size());
 
     mesh.indexOffset = indexOffset;
     mesh.indexCount = uint32_t(indices.size());
 
-    mesh.vertexOffset = vertexOffset;
-    mesh.vertexCount = uint32_t(vertices.size());
+    mesh.meshletOffset = meshletOffset;
+    mesh.meshletCount = meshletCount;
 
     m_instances.push_back(mesh);
 
@@ -305,23 +305,26 @@ void Mesh::generateRenderData(VkDevice device, VkCommandBuffer commandBuffer, Vk
     if (rtxSupported)
     {
         //buildMeshletCones();
-        createBuffer(mb, device, memoryProperties, sizeof(m_meshlets[0]) * m_meshlets.size(), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+        createBuffer(mlb, device, memoryProperties, sizeof(m_meshlets[0]) * m_meshlets.size(), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
         createBuffer(mdb, device, memoryProperties, sizeof(m_meshlet_data[0]) * m_meshlet_data.size(), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
     }
     //memcpy(mb.data, m_meshlets.data(), sizeof(m_meshlets[0]) * m_meshlets.size());
 
-    size_t temp = m_meshlets.empty() ? sizeof(m_indices[0]) * m_indices.size() : std::max(sizeof(m_indices[0]) * m_indices.size(), std::max(sizeof(m_meshlets[0]) * m_meshlets.size(), sizeof(m_meshlet_data[0]) * m_meshlet_data.size()));
+    createBuffer(mb, device, memoryProperties, sizeof(m_instances[0]) * m_instances.size(), VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT);
+
+    size_t temp = m_meshlets.empty() ? sizeof(m_indices[0]) * m_indices.size() : std::max(sizeof(m_indices[0]) * m_indices.size(), std::max(sizeof(m_meshlets[0]) * m_meshlets.size(), std::max(sizeof(m_meshlet_data[0]) * m_meshlet_data.size(), sizeof(m_instances[0]) * m_instances.size())));
     Buffer scratch = {};
     createBuffer(scratch, device, memoryProperties, std::max(sizeof(m_vertices[0]) * m_vertices.size(), temp), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 
     if (rtxSupported)
     {
-        uploadBuffer(device, commandBuffer, queue, mb, scratch, m_meshlets.data(), sizeof(m_meshlets[0]) * m_meshlets.size());
+        uploadBuffer(device, commandBuffer, queue, mlb, scratch, m_meshlets.data(), sizeof(m_meshlets[0]) * m_meshlets.size());
         uploadBuffer(device, commandBuffer, queue, mdb, scratch, m_meshlet_data.data(), sizeof(m_meshlet_data[0]) * m_meshlet_data.size());
     }
 
     uploadBuffer(device, commandBuffer, queue, vb, scratch, m_vertices.data(), m_vertices.size() * sizeof(m_vertices[0]));
     uploadBuffer(device, commandBuffer, queue, ib, scratch, m_indices.data(), m_indices.size() * sizeof(m_indices[0]));
+    uploadBuffer(device, commandBuffer, queue, mb, scratch, m_instances.data(), m_instances.size() * sizeof(m_instances[0]));
     //memcpy(vb.data, m_vertices.data(), m_vertices.size() * sizeof(m_vertices[0]));
     //memcpy(ib.data, m_indices.data(), m_indices.size() * sizeof(m_indices[0]));
     destroyBuffer(scratch, device);
@@ -331,10 +334,11 @@ void Mesh::destroyRenderData(VkDevice device)
 {
     destroyBuffer(vb, device);
     destroyBuffer(ib, device);
+    destroyBuffer(mb, device);
 
     if (rtxSupported)
     {
-        destroyBuffer(mb, device);
+        destroyBuffer(mlb, device);
         destroyBuffer(mdb, device);
     }
 }

@@ -35,14 +35,8 @@ void renderApplication::createMeshes()
         float angle = glm::radians((float(rand()) / RAND_MAX) * 90.f);
         draws[i].rotation = glm::rotate(glm::quat(1.f, 0.f, 0.f, 0.f), angle, axis);
 
-        draws[i].center = mesh.center;
-        draws[i].radius = mesh.radius;
-
-        draws[i].indexCount = uint32_t(mesh.indexCount);
-        draws[i].indexOffset = uint32_t(mesh.indexOffset);
+        draws[i].meshIndex = meshIndex;
         draws[i].vertexOffset = mesh.vertexOffset;
-        draws[i].meshletCount = mesh.meshletCount;
-        draws[i].meshletOffset = mesh.meshletOffset;
 
         //memset(draws[i].commandData, 0, sizeof(draws[i].commandData));
         //draws[i].commandIndirect.indexCount = uint32_t(mesh.indexCount);

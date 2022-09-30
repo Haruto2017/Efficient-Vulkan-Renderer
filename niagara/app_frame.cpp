@@ -44,7 +44,7 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
           
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, drawcmdPipeline);
 
-        DescriptorInfo descriptors[] = { db.buffer, dcb.buffer, dccb.buffer };
+        DescriptorInfo descriptors[] = { db.buffer, meshes[0].mb.buffer, dcb.buffer, dccb.buffer };
 
         vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, drawcmdProgram.updateTemplate, drawcmdProgram.layout, 0, descriptors);
 
@@ -103,7 +103,7 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     {
         vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, rtxGraphicsPipeline);
 
-        DescriptorInfo descriptors[] = { dcb.buffer, db.buffer, meshes[0].mb.buffer, meshes[0].mdb.buffer, meshes[0].vb.buffer };
+        DescriptorInfo descriptors[] = { dcb.buffer, db.buffer, meshes[0].mlb.buffer, meshes[0].mdb.buffer, meshes[0].vb.buffer };
 
         vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, rtxGraphicsProgram.updateTemplate, rtxGraphicsProgram.layout, 0, descriptors);
 

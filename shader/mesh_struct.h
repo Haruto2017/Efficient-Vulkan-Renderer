@@ -26,26 +26,33 @@ struct Globals
     mat4 projection;
 };
 
-struct MeshDraw
+struct MeshInstance
 {
-    vec3 position;
-    float scale;
-    vec4 rotation;
-
     vec3 center;
     float radius;
 
     uint vertexOffset;
+    uint vertexCount;
     uint indexOffset;
 	uint indexCount;
     uint meshletOffset;
     uint meshletCount;
 };
 
+struct MeshDraw
+{
+    vec3 position;
+    float scale;
+    vec4 rotation;
+
+    uint meshIndex;
+    uint vertexOffset; // duplicate data for not reading an additional buffer in mesh shader
+};
+
 struct MeshDrawCommand
 {
     uint drawId;
-    
+
     uint indexCount;
     uint instanceCount;
     uint firstIndex;

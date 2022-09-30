@@ -22,12 +22,17 @@ layout(binding = 0) buffer readonly Draws
     MeshDraw draws[];
 };
 
-layout(binding = 1) buffer writeonly DrawCommands
+layout(binding = 1) buffer readonly Meshes
+{
+    MeshInstance meshes[];
+};
+
+layout(binding = 2) buffer writeonly DrawCommands
 {
     MeshDrawCommand drawCommands[];
 };
 
-layout(binding = 2) buffer DrawCommandCount
+layout(binding = 3) buffer DrawCommandCount
 {
     uint drawCommandCount;
 };
@@ -38,8 +43,10 @@ void main()
     uint ti = gl_LocalInvocationID.x;
     uint di = gi * 32 + ti;
 
-    vec3 center = rotate(draws[di].center, draws[di].rotation) * draws[di].scale + draws[di].position;
-    float radius = draws[di].radius * draws[di].scale;
+    MeshInstance mesh = meshes[draws[di].meshIndex];
+
+    vec3 center = rotate(mesh.center, draws[di].rotation) * draws[di].scale + draws[di].position;
+    float radius = mesh.radius * draws[di].scale;
 
     bool visible = true;
 
@@ -64,19 +71,19 @@ void main()
     {
         dcgi = atomicAdd(drawCommandCount, count);
     }
-    
+
     uint index = subgroupBallotExclusiveBitCount(ballot);
     uint dci = subgroupBroadcastFirst(dcgi) + index;
 
     if (visible)
     {
         drawCommands[dci].drawId = di;
-        drawCommands[dci].indexCount = draws[di].indexCount;
-        drawCommands[dci].instanceCount = visible ? 1 : 0;
-        drawCommands[dci].firstIndex = draws[di].indexOffset;
-        drawCommands[dci].vertexOffset = draws[di].vertexOffset;
+        drawCommands[dci].indexCount = mesh.indexCount;
+        drawCommands[dci].instanceCount = 1;
+        drawCommands[dci].firstIndex = mesh.indexOffset;
+        drawCommands[dci].vertexOffset = mesh.vertexOffset;
         drawCommands[dci].firstInstance = 0;
-        drawCommands[dci].taskCount = visible ? ((draws[di].meshletCount + 31) / 32) : 0;
-        drawCommands[dci].firstTask = draws[di].meshletOffset / 32;
+        drawCommands[dci].taskCount = (mesh.meshletCount + 31) / 32;
+        drawCommands[dci].firstTask = mesh.meshletOffset / 32;
     }
 }

@@ -70,14 +70,8 @@ struct alignas(16) MeshDraw
 	float scale;
 	glm::quat rotation;
 
-	glm::vec3 center;
-	float radius;
-
+	uint32_t meshIndex;
 	uint32_t vertexOffset;
-	uint32_t indexOffset;
-	uint32_t indexCount;
-	uint32_t meshletOffset;
-	uint32_t meshletCount;
 };
 
 struct MeshDrawCommand
@@ -87,19 +81,19 @@ struct MeshDrawCommand
 	VkDrawMeshTasksIndirectCommandNV indirectMS; // 2 * 4
 };
 
-struct MeshInstance
+struct alignas(16) MeshInstance
 {
 	glm::vec3 center;
 	float radius;
-
-	uint32_t meshletOffset;
-	uint32_t meshletCount;
 
 	uint32_t vertexOffset;
 	uint32_t vertexCount;
 
 	uint32_t indexOffset;
 	uint32_t indexCount;
+
+	uint32_t meshletOffset;
+	uint32_t meshletCount;
 };
 
 glm::mat4 MakeInfReversedZProjRH(float fovY_radians, float aspectWbyH, float zNear);
@@ -113,8 +107,9 @@ public:
 
 	Buffer vb;
 	Buffer ib;
-	Buffer mb;
+	Buffer mlb;
 	Buffer mdb;
+	Buffer mb;
 
 	std::vector<Vertex> m_vertices;
 	std::vector<uint32_t> m_indices;
