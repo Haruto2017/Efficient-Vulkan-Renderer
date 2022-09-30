@@ -83,3 +83,16 @@
     * Mesh shading pipeline with indirect submission & Frustum Culling
 
     ![Mesh Shading](images/GPU_FRUSTUM_CULLING_WITH_QUERY_AND_MESH_SHADING.png)
+
+* GPU Level-of-Detail
+
+    * Generates draw command with different LOD based on distance inside the compute shader
+        * Now use a logarithemic approach to select LOD level. Maybe it is better to adjust this based on how many pixels are rendered inside one triangle at the distance. Or just be manually adjusted based on the scene.
+
+    * LOD Enabled
+
+    ![LOD](images/GPU_LOD_ON.png)
+
+    * LOD Disabled
+
+    ![No LOD](images/GPU_LOD_OFF.png)

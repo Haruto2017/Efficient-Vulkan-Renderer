@@ -6,14 +6,14 @@ void renderApplication::createMeshes()
     meshes[0].rtxSupported = rtxSupported;
     //meshes[0].loadMesh("..\\extern\\common-3d-test-models\\data\\xyzrgb_dragon.obj");
     meshes[0].loadMesh("..\\kitten.obj", rtxSupported);
-    meshes[0].loadMesh("..\\extern\\common-3d-test-models\\data\\suzanne.obj", rtxSupported);
+    //meshes[0].loadMesh("..\\extern\\common-3d-test-models\\data\\suzanne.obj", rtxSupported);
 
     VkPhysicalDeviceMemoryProperties memProperties;
     vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
 
     meshes[0].generateRenderData(device, commandBuffers[0], graphicsQueue, memProperties);
 
-    drawCount = 100000;
+    drawCount = 500000;
     float sceneRadius = 300.f;
     drawDistance = 300.f;
 
