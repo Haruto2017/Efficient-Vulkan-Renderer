@@ -13,6 +13,8 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     {
         vkCmdResetQueryPool(commandBuffer, queryPool, 0, QUERYCOUNT);
         vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, queryPool, 0);
+        vkCmdResetQueryPool(commandBuffer, pipeStatsQueryPool, 0, 1);
+        vkCmdBeginQuery(commandBuffer, pipeStatsQueryPool, 0, 0);
     }
 
     glm::mat4 projection = MakeInfReversedZProjRH(glm::radians(50.f), float(swapChainExtent.width) / float(swapChainExtent.height), 0.01f);
@@ -149,6 +151,7 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     if (queryEnabled)
     {
         vkCmdWriteTimestamp(commandBuffer, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, queryPool, 1);
+        vkCmdEndQuery(commandBuffer, pipeStatsQueryPool, 0);
     }
 
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
@@ -268,7 +271,10 @@ void renderApplication::drawFrame() {
     {
         vkGetQueryPoolResults(device, queryPool, 0,
             sizeof(queryResults) / sizeof(queryResults[0]), sizeof(queryResults), queryResults, sizeof(queryResults[0]), VK_QUERY_RESULT_WAIT_BIT | VK_QUERY_RESULT_64_BIT);
+        vkGetQueryPoolResults(device, pipeStatsQueryPool, 0,
+            1, sizeof(pipeStatsQueryResults), pipeStatsQueryResults, sizeof(pipeStatsQueryResults[0]), VK_QUERY_RESULT_WAIT_BIT);
 
+        triangleCount = pipeStatsQueryResults[0];
         frameGPUBegin = double(queryResults[0]) * timestampPeriod * 1e-6;
         frameGPUEnd = double(queryResults[1]) * timestampPeriod * 1e-6;
         frameGPUAvg = frameGPUAvg * 0.95 + (frameGPUEnd - frameGPUBegin) * 0.05;

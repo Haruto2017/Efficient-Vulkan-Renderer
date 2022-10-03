@@ -223,3 +223,22 @@ glm::vec4 normalizePlane(glm::vec4 p)
 {
 	return p / glm::length(glm::vec3(p.x, p.y, p.z));
 }
+
+VkQueryPool createGenericQueryPool(VkDevice device, uint32_t queryCount, VkQueryType queryType)
+{
+	VkQueryPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
+	createInfo.queryType = queryType;
+	createInfo.queryCount = queryCount;
+
+	if (queryType == VK_QUERY_TYPE_PIPELINE_STATISTICS)
+	{
+		createInfo.pipelineStatistics = VK_QUERY_PIPELINE_STATISTIC_CLIPPING_INVOCATIONS_BIT;
+	}
+
+	VkQueryPool queryPool = 0;
+	if (vkCreateQueryPool(device, &createInfo, 0, &queryPool) != VK_SUCCESS)
+	{
+		throw std::runtime_error("can't create query pool");
+	}
+	return queryPool;
+}

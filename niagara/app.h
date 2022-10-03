@@ -83,6 +83,10 @@ private:
 
     VkQueryPool queryPool;
     uint64_t queryResults[4];
+
+    VkQueryPool pipeStatsQueryPool;
+    uint32_t pipeStatsQueryResults[1];
+
     bool queryEnabled = false;
     float timestampPeriod;
     double frameGPUBegin;

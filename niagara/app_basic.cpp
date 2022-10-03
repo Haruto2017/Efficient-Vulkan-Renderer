@@ -47,7 +47,7 @@ void renderApplication::createMeshes()
         //draws[i].commandIndirect.instanceCount = 1;
         //draws[i].commandIndirect.vertexOffset = mesh.vertexOffset;
         //draws[i].commandIndirectMS.taskCount = (mesh.meshletCount + 31) / 32;
-        triangleCount += mesh.lods[0].indexCount / 3;
+        //triangleCount += mesh.lods[0].indexCount / 3;
     }
     Buffer scratch = {};
     createBuffer(scratch, device, memProperties, sizeof(draws[0]) * draws.size(), VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
@@ -195,12 +195,6 @@ void renderApplication::createCommandBuffers() {
 
 void renderApplication::createQueryPool()
 {
-    VkQueryPoolCreateInfo createInfo = { VK_STRUCTURE_TYPE_QUERY_POOL_CREATE_INFO };
-    createInfo.queryType = VK_QUERY_TYPE_TIMESTAMP;
-    createInfo.queryCount = QUERYCOUNT;
-
-    if (vkCreateQueryPool(device, &createInfo, 0, &queryPool) != VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to create query pool");
-    }
+    queryPool = createGenericQueryPool(device, QUERYCOUNT, VK_QUERY_TYPE_TIMESTAMP);
+    pipeStatsQueryPool = createGenericQueryPool(device, 1, VK_QUERY_TYPE_PIPELINE_STATISTICS);
 }

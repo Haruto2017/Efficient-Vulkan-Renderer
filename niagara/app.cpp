@@ -101,6 +101,7 @@ void renderApplication::mainLoop() {
 
 void renderApplication::cleanup() {
     vkDestroyQueryPool(device, queryPool, nullptr);
+    vkDestroyQueryPool(device, pipeStatsQueryPool, nullptr);
     for (size_t i = 0; i < meshes.size(); ++i)
     {
         meshes[i].destroyRenderData(device);

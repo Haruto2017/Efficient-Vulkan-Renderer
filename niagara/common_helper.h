@@ -115,4 +115,6 @@ VkBufferMemoryBarrier bufferBarrier(VkBuffer buffer, VkAccessFlags srcAccessMask
 
 glm::vec4 normalizePlane(glm::vec4 p);
 
+VkQueryPool createGenericQueryPool(VkDevice device, uint32_t queryCount, VkQueryType queryType);
+
 #endif
