@@ -63,26 +63,10 @@ void main()
 
     visible = cullingEnabled == 1 ? visible : true;
 
-    uvec4 ballot = subgroupBallot(visible);
-    uint count = subgroupBallotBitCount(ballot);
-
-    if (count == 0)
-    {
-        return;
-    }
-
-    uint dcgi = 0;
-
-    if (ti == 0)
-    {
-        dcgi = atomicAdd(drawCommandCount, count);
-    }
-
-    uint index = subgroupBallotExclusiveBitCount(ballot);
-    uint dci = subgroupBroadcastFirst(dcgi) + index;
-
     if (visible)
     {
+        uint dci = atomicAdd(drawCommandCount, 1);
+        
         float lodDistance = log2(max(1, (distance(center, vec3(0)) - radius)));
         
         uint lodIndex = clamp(int(lodDistance), 0, int(mesh.lodCount) - 1);
