@@ -83,7 +83,7 @@ void main()
 
     if (visible)
     {
-        float lodDistance = log2(max(1, distance(center, vec3(0)) - radius) * 5);
+        float lodDistance = log2(max(1, (distance(center, vec3(0)) - radius)));
         
         uint lodIndex = clamp(int(lodDistance), 0, int(mesh.lodCount) - 1);
 

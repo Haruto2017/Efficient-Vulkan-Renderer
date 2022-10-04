@@ -90,8 +90,8 @@ void renderApplication::mainLoop() {
         double trianglesPerSec = frameGPUAvg > 0.f ? double(triangleCount) / double(frameGPUAvg * 1e-3) : 0.f;
         double meshPerSec = frameGPUAvg > 0.f ? double(drawCount) / double(frameGPUAvg * 1e-3) : 0.f;
         char title[256];
-        sprintf(title, "cpu: %.1f ms; gpu: %.3f ms (cull: %.2f ms); triangles %.1fM; meshlets %d; mesh shading %s; %.1fB tri/sec; show query %s; culling %s; lod %s",
-            frameCPUAvg, frameGPUAvg, cullGPUTime, double(triangleCount) * 1e-6, meshes[0].m_meshlets.size(), rtxEnabled ? "ON" : "OFF", 
+        sprintf(title, "cpu: %.1f ms; gpu: %.3f ms (cull: %.2f ms); triangles %.1fM; mesh shading %s; %.1fB tri/sec; show query %s; culling %s; lod %s",
+            frameCPUAvg, frameGPUAvg, cullGPUTime, double(triangleCount) * 1e-6, rtxEnabled ? "ON" : "OFF", 
             trianglesPerSec * 1e-9, queryEnabled ? "ON" : "OFF", cullEnabled ? "ON" : "OFF", lodEnabled ? "ON" : "OFF");
         glfwSetWindowTitle(window, title);
     }

@@ -13,13 +13,13 @@ void renderApplication::createMeshes()
 
     meshes[0].generateRenderData(device, commandBuffers[0], graphicsQueue, memProperties);
 
-    drawCount = 500000;
+    drawCount = 1000000;
     float sceneRadius = 300.f;
-    drawDistance = 300.f;
+    drawDistance = 200.f;
 
     draws.resize(drawCount);
 
-    srand(32);
+    srand(42);
 
     for (uint32_t i = 0; i < drawCount; ++i)
     {
@@ -32,7 +32,8 @@ void renderApplication::createMeshes()
         draws[i].position[0] = (float(rand()) / RAND_MAX) * sceneRadius * 2 - sceneRadius;
         draws[i].position[1] = (float(rand()) / RAND_MAX) * sceneRadius * 2 - sceneRadius;
         draws[i].position[2] = (float(rand()) / RAND_MAX) * sceneRadius * 2 - sceneRadius;
-        draws[i].scale = meshIndex == 1 ? (float(rand()) / RAND_MAX) *  0.3f + 0.4f : (float(rand()) / RAND_MAX) + 1.f;
+        draws[i].scale = (float(rand()) / RAND_MAX) + 1.f;//meshIndex == 1 ? (float(rand()) / RAND_MAX) *  0.3f + 0.4f : (float(rand()) / RAND_MAX) + 1.f;
+        draws[i].scale *= 2.f;
 
         glm::vec3 axis((float(rand()) / RAND_MAX) * 2.f - 1.f, (float(rand()) / RAND_MAX) * 2.f - 1.f, (float(rand()) / RAND_MAX) * 2.f - 1.f);
         float angle = glm::radians((float(rand()) / RAND_MAX) * 90.f);

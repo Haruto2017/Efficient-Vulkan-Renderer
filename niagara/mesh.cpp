@@ -156,7 +156,8 @@ void Mesh::loadMesh(std::string objpath, bool buildMeshlets)
         {
             size_t nextIndicesTarget = size_t(double(lodIndices.size()) * 0.75);
             // this simplification method picks an end point for a collapsed edge. 
-            size_t nextIndices = meshopt_simplify(lodIndices.data(), lodIndices.data(), lodIndices.size(), &vertices[0].px, vertices.size(), sizeof(Vertex), nextIndicesTarget, 1e-4f);
+            size_t nextIndices = meshopt_simplify(lodIndices.data(), lodIndices.data(), lodIndices.size(), &vertices[0].px, vertices.size(), sizeof(Vertex), nextIndicesTarget, 1e-2f);
+            //(unsigned int* destination, const unsigned int* indices, size_t index_count, const float* vertex_positions, size_t vertex_count, size_t vertex_positions_stride, size_t target_index_count, float target_error, unsigned int options, float* result_error);
 
             assert(nextIndices <= lodIndices.size());
 
