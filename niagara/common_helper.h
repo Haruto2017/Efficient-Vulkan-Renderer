@@ -68,6 +68,10 @@ struct Shader
     VkShaderStageFlagBits stage;
     uint32_t storageBufferMask;
 
+    uint32_t localSizeX;
+    uint32_t localSizeY;
+    uint32_t localSizeZ;
+
     bool usesPushConstant;
 };
 
@@ -84,13 +88,12 @@ using Shaders = std::initializer_list<const Shader*>;
 
 struct Id
 {
-    enum Kind { Unknown, Variable };
-
-    Kind kind = Unknown;
-    uint32_t type;
+    uint32_t opcode;
+    uint32_t typeId;
     uint32_t storageClass;
     uint32_t binding;
     uint32_t set;
+    uint32_t constant;
 };
 
 uint32_t findMemoryType(const VkPhysicalDeviceMemoryProperties& memoryProperties, uint32_t typeFilter, VkMemoryPropertyFlags properties);

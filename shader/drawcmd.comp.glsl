@@ -8,7 +8,7 @@
 
 #include "mesh_struct.h"
 
-layout(local_size_x = 32, local_size_y = 1, local_size_z = 1) in;
+layout(local_size_x = 64, local_size_y = 1, local_size_z = 1) in;
 
 layout(push_constant) uniform block
 {
@@ -40,16 +40,15 @@ layout(binding = 3) buffer DrawCommandCount
 
 void main()
 {
-    uint gi = gl_WorkGroupID.x;
-    uint ti = gl_LocalInvocationID.x;
-    uint di = gi * 32 + ti;
+    uint di = gl_GlobalInvocationID.x;
 
     if (di >= drawCount)
     {
         return;
     }
 
-    MeshInstance mesh = meshes[draws[di].meshIndex];
+    uint meshIndex = draws[di].meshIndex;
+    MeshInstance mesh = meshes[meshIndex];
 
     vec3 center = rotate(mesh.center, draws[di].rotation) * draws[di].scale + draws[di].position;
     float radius = mesh.radius * draws[di].scale;
@@ -66,7 +65,7 @@ void main()
     if (visible)
     {
         uint dci = atomicAdd(drawCommandCount, 1);
-        
+
         float lodDistance = log2(max(1, (distance(center, vec3(0)) - radius)));
         
         uint lodIndex = clamp(int(lodDistance), 0, int(mesh.lodCount) - 1);

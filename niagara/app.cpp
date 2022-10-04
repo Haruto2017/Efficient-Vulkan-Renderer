@@ -107,6 +107,8 @@ void renderApplication::cleanup() {
         meshes[i].destroyRenderData(device);
     }
 
+    destroyShader(drawcullCS);
+
     destroyBuffer(db, device);
     destroyBuffer(dcb, device);
     destroyBuffer(dccb, device);

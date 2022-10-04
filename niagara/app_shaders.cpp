@@ -41,6 +41,10 @@ static void parseShader(Shader& shader, const uint32_t* code, uint32_t codeSize)
 
     std::vector<Id> ids(idBound);
 
+    int localSizeIdX = -1;
+    int localSizeIdY = -1;
+    int localSizeIdZ = -1;
+
     const uint32_t* insn = code + 5;
 
     while (insn != code + codeSize)
@@ -57,6 +61,24 @@ static void parseShader(Shader& shader, const uint32_t* code, uint32_t codeSize)
                 throw std::runtime_error("bad word count");
             }
             shader.stage = getShaderStage(SpvExecutionModel(insn[1]));
+        } break;
+        case SpvOpExecutionModeId:
+        {
+            if (wordCount < 3)
+            {
+                throw std::runtime_error("bad word count");
+            }
+            uint32_t mode = insn[2];
+
+            switch (mode)
+            {
+            case SpvExecutionModeLocalSizeId:
+                assert(wordCount == 6);
+                localSizeIdX = int(insn[3]);
+                localSizeIdY = int(insn[4]);
+                localSizeIdZ = int(insn[5]);
+                break;
+            }
         } break;
         case SpvOpDecorate:
         {
@@ -78,16 +100,28 @@ static void parseShader(Shader& shader, const uint32_t* code, uint32_t codeSize)
             }
 
         } break;
+        case SpvOpConstant:
+        {
+            assert(wordCount >= 4); // we currently only correctly handle 32-bit integer constants
+
+            uint32_t id = insn[2];
+            assert(id < idBound);
+
+            assert(ids[id].opcode == 0);
+            ids[id].opcode = opcode;
+            ids[id].typeId = insn[1];
+            ids[id].constant = insn[3]; // note: this is the value, not the id of the constant
+        } break;
         case SpvOpVariable:
         {
-            if (wordCount < 2)
-            {
-                throw std::runtime_error("bad word count");
-            }
-            uint32_t id = insn[2];
+            assert(wordCount >= 4);
 
-            ids[id].kind = Id::Variable;
-            ids[id].type = insn[1];
+            uint32_t id = insn[2];
+            assert(id < idBound);
+
+            assert(ids[id].opcode == 0);
+            ids[id].opcode = opcode;
+            ids[id].typeId = insn[1];
             ids[id].storageClass = insn[3];
         } break;
         }
@@ -101,7 +135,7 @@ static void parseShader(Shader& shader, const uint32_t* code, uint32_t codeSize)
 
     for (auto& id : ids)
     {
-        if (id.kind == Id::Variable && id.storageClass == SpvStorageClassStorageBuffer)
+        if (id.opcode == SpvOpVariable && id.storageClass == SpvStorageClassStorageBuffer)
         {
             assert(id.set == 0);
             assert(id.binding < 32);
@@ -110,10 +144,33 @@ static void parseShader(Shader& shader, const uint32_t* code, uint32_t codeSize)
             shader.storageBufferMask |= 1 << id.binding;
         }
 
-        if (id.kind == Id::Variable && id.storageClass == SpvStorageClassPushConstant)
+        if (id.opcode == SpvOpVariable && id.storageClass == SpvStorageClassPushConstant)
         {
             shader.usesPushConstant = true;
         }
+    }
+
+    if (shader.stage == VK_SHADER_STAGE_COMPUTE_BIT)
+    {
+        if (localSizeIdX >= 0)
+        {
+            assert(ids[localSizeIdX].opcode == SpvOpConstant);
+            shader.localSizeX = ids[localSizeIdX].constant;
+        }
+
+        if (localSizeIdY >= 0)
+        {
+            assert(ids[localSizeIdY].opcode == SpvOpConstant);
+            shader.localSizeY = ids[localSizeIdY].constant;
+        }
+
+        if (localSizeIdZ >= 0)
+        {
+            assert(ids[localSizeIdZ].opcode == SpvOpConstant);
+            shader.localSizeZ = ids[localSizeIdZ].constant;
+        }
+
+        assert(shader.localSizeX && shader.localSizeY && shader.localSizeZ);
     }
 }
 
@@ -408,7 +465,6 @@ void renderApplication::createGraphicsPipeline() {
     bool rc = false;
     Shader meshShader = {};
     Shader taskShader = {};
-    Shader compShader = {};
     if (rtxSupported)
     {
         std::vector<char> meshShaderCode = readFile("..\\compiledShader\\meshlet.mesh.spv");
@@ -423,7 +479,7 @@ void renderApplication::createGraphicsPipeline() {
         }
     }
     std::vector<char> compShaderCode = readFile("..\\compiledShader\\drawcmd.comp.spv");
-    if (!createShader(compShader, compShaderCode))
+    if (!createShader(drawcullCS, compShaderCode))
     {
         throw std::runtime_error("failed to create comp shader");
     }
@@ -449,8 +505,8 @@ void renderApplication::createGraphicsPipeline() {
         createGenericGraphicsPipeline({ &taskShader, &meshShader, &fragShader }, pipelineCache, rtxGraphicsProgram.layout, rtxGraphicsPipeline);
     }
 
-    createGenericProgram(VK_PIPELINE_BIND_POINT_COMPUTE, { &compShader }, sizeof(DrawCullData), drawcmdProgram);
-    createComputePipeline(pipelineCache, compShader, drawcmdProgram.layout, drawcmdPipeline);
+    createGenericProgram(VK_PIPELINE_BIND_POINT_COMPUTE, { &drawcullCS }, sizeof(DrawCullData), drawcmdProgram);
+    createComputePipeline(pipelineCache, drawcullCS, drawcmdProgram.layout, drawcmdPipeline);
 
     createGenericProgram(VK_PIPELINE_BIND_POINT_GRAPHICS, { &vertShader, &fragShader }, sizeof(Globals), graphicsProgram);
     createGenericGraphicsPipeline({ &vertShader, &fragShader }, pipelineCache, graphicsProgram.layout, graphicsPipeline);
@@ -462,5 +518,4 @@ void renderApplication::createGraphicsPipeline() {
         destroyShader(meshShader);
         destroyShader(taskShader);
     }
-    destroyShader(compShader);
 }

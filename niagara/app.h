@@ -68,6 +68,8 @@ private:
     VkPipeline drawcmdPipeline;
     Program drawcmdProgram;
 
+    Shader drawcullCS;
+
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
 
