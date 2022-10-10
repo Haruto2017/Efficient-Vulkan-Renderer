@@ -96,3 +96,13 @@
     * LOD Disabled
 
     ![No LOD](images/GPU_LOD_OFF.png)
+
+* Depth pyramid GPU-Occulusion-Testing
+
+    * Uses levels of depth max value (min value if reverse-Z) to conservatively cull away occluded meshes
+
+    ![Level 0](images/Depth_pyramid_level0.png)
+
+    ![Level 3](images/Depth_pyramid_level3.png)
+
+    ![Level 6](images/Depth_pyramid_level6.png)
