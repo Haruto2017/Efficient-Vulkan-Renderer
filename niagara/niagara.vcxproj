@@ -108,7 +108,7 @@
       <PreprocessorDefinitions>GLM_FORCE_XYZW_ONLY;NDEBUG;_GLFW_WIN32;VK_KHR_win32_surface;GLFW_EXPOSE_NATIVE_WIN32;VK_USE_PLATFORM_WIN32_KHR;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile />
-      <AdditionalIncludeDirectories>../extern/volk;../extern/glm;$(VULKAN_SDK)\Include;../extern/glfw/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../extern/volk;../extern/glm;$(VULKAN_SDK)/Include;../extern/glfw/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>
@@ -146,7 +146,7 @@
       <PreprocessorDefinitions>GLM_FORCE_XYZW_ONLY;NDEBUG;_GLFW_WIN32;VK_KHR_win32_surface;GLFW_EXPOSE_NATIVE_WIN32;VK_USE_PLATFORM_WIN32_KHR;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
       <PrecompiledHeaderFile />
-      <AdditionalIncludeDirectories>../extern/volk;../extern/glm;$(VULKAN_SDK)\Include;../extern/glfw/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>../extern/volk;../extern/glm;$(VULKAN_SDK)/Include;../extern/glfw/include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp17</LanguageStandard>
     </ClCompile>
     <Link>

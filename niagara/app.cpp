@@ -4,6 +4,7 @@ bool meshShadingSwitch = true;
 bool querySwitch = false;
 bool cullSwitch = true;
 bool lodSwitch = true;
+bool debugPyramidSwitch = false;
 
 void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
@@ -31,6 +32,10 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         if (key == GLFW_KEY_L)
         {
             lodSwitch = !lodSwitch;
+        }
+        if (key == GLFW_KEY_P)
+        {
+            debugPyramidSwitch = !debugPyramidSwitch;
         }
     }
 }
@@ -68,6 +73,7 @@ void renderApplication::initVulkan() {
     createLogicalDevice();
     createSwapChain();
     createRenderPass();
+    createRenderPassLate();
     createGraphicsPipeline();
     createCommandPool();
     createCommandBuffers();
@@ -82,6 +88,7 @@ void renderApplication::mainLoop() {
         queryEnabled = querySwitch;
         cullEnabled = cullSwitch;
         lodEnabled = lodSwitch;
+        debugPyramid = debugPyramidSwitch;
         double frameCPUBegin = glfwGetTime() * 1000;
         glfwPollEvents();
         drawFrame();
@@ -108,10 +115,20 @@ void renderApplication::cleanup() {
     }
 
     destroyShader(drawcullCS);
+    destroyShader(depthreduceCS);
 
     destroyBuffer(db, device);
     destroyBuffer(dcb, device);
     destroyBuffer(dccb, device);
+
+    if (depthPyramid.image)
+    {
+        for (uint32_t i = 0; i < depthPyramidLevels; ++i)
+        {
+            vkDestroyImageView(device, depthPyramidMips[i], 0);
+        }
+        destroyImage(depthPyramid, device);
+    }
 
     destroyImage(colorTarget, device);
     destroyImage(depthTarget, device);
@@ -123,14 +140,19 @@ void renderApplication::cleanup() {
     {
         vkDestroyPipeline(device, rtxGraphicsPipeline, nullptr);
         destroyProgram(rtxGraphicsProgram);
-        vkDestroyPipeline(device, drawcmdPipeline, nullptr);
-        destroyProgram(drawcmdProgram);
     }
+
+    vkDestroyPipeline(device, depthreducePipeline, nullptr);
+    destroyProgram(depthreduceProgram);
+
+    vkDestroyPipeline(device, drawcmdPipeline, nullptr);
+    destroyProgram(drawcmdProgram);
 
     vkDestroyPipeline(device, graphicsPipeline, nullptr);
     destroyProgram(graphicsProgram);
 
     vkDestroyRenderPass(device, renderPass, nullptr);
+    vkDestroyRenderPass(device, renderPassLate, nullptr);
 
     for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
         vkDestroySemaphore(device, renderFinishedSemaphores[i], nullptr);

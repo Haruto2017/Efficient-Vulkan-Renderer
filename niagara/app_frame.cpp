@@ -36,7 +36,7 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
         cullData.drawCount = drawCount;
         cullData.cullingEnabled = cullEnabled;
         cullData.lodEnabled = lodEnabled;
-
+        
         vkCmdFillBuffer(commandBuffer, dccb.buffer, 0, 4, 0);
 
         VkBufferMemoryBarrier fillBarrier = bufferBarrier(dccb.buffer, VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT | VK_ACCESS_SHADER_READ_BIT);
@@ -49,7 +49,7 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
         vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, drawcmdProgram.updateTemplate, drawcmdProgram.layout, 0, descriptors);
 
         vkCmdPushConstants(commandBuffer, drawcmdProgram.layout, drawcmdProgram.pushConstantStages, 0, sizeof(DrawCullData), &cullData);
-        vkCmdDispatch(commandBuffer, uint32_t((draws.size() + drawcullCS.localSizeX - 1) / drawcullCS.localSizeX), 1, 1);
+        vkCmdDispatch(commandBuffer, getGroupCount(uint32_t(draws.size()), drawcullCS.localSizeX), 1, 1);
 
         VkBufferMemoryBarrier cullBarrier = bufferBarrier(dcb.buffer, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_INDIRECT_COMMAND_READ_BIT);
         vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_DRAW_INDIRECT_BIT, 0, 0, 0, 1, &cullBarrier, 0, 0);
@@ -66,21 +66,18 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     };
     vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, sizeof(renderBeginBarriers) / sizeof(renderBeginBarriers[0]), renderBeginBarriers);
 
+    VkClearValue clearValues[2] = {};
+    clearValues[0].color = { 0.f, 0.f, 0.f, 1.f };
+    clearValues[1].depthStencil = { 0.f, 0 };
+
     VkRenderPassBeginInfo renderPassInfo{};
     renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
     renderPassInfo.renderPass = renderPass;
     renderPassInfo.framebuffer = targetFB;//swapChainFramebuffers[imageIndex];
     renderPassInfo.renderArea.offset = { 0, 0 };
     renderPassInfo.renderArea.extent = swapChainExtent;
-
-    VkClearValue clearValues[2] = {};
-    clearValues[0].color = { 0.f, 0.f, 0.f, 1.f };
-    clearValues[1].depthStencil = { 0.f, 0 };
-
     renderPassInfo.clearValueCount = sizeof(clearValues) / sizeof(clearValues[0]);
     renderPassInfo.pClearValues = clearValues;
-
-    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     VkViewport viewport{};
     viewport.x = 0.0f;
@@ -95,6 +92,8 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     scissor.offset = { 0, 0 };
     scissor.extent = swapChainExtent;
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
+
+    vkCmdBeginRenderPass(commandBuffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
     Globals globals = {};
     globals.projection = projection;
@@ -129,6 +128,49 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
 
     vkCmdEndRenderPass(commandBuffer);
 
+    VkImageMemoryBarrier depthReadBarriers[] =
+    {
+        imageBarrier(depthTarget.image, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT),
+        imageBarrier(depthPyramid.image, 0, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL),
+    };
+
+    vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, sizeof(depthReadBarriers) / sizeof(depthReadBarriers[0]), depthReadBarriers);
+
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, depthreducePipeline);
+
+    // build depth pyramid
+    for (uint32_t i = 0; i < depthPyramidLevels; ++i)
+    {
+        DescriptorInfo sourceDepth = DescriptorInfo{ depthPyramidMips[i], VK_IMAGE_LAYOUT_GENERAL };// (i == 0) ? DescriptorInfo{ depthTarget.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL } : DescriptorInfo{ depthPyramidMips[i - 1], VK_IMAGE_LAYOUT_GENERAL };
+        DescriptorInfo descriptors[] = {{ depthPyramidMips[i], VK_IMAGE_LAYOUT_GENERAL }, sourceDepth };
+
+        vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, depthreduceProgram.updateTemplate, depthreduceProgram.layout, 0, descriptors);
+
+        uint32_t levelWidth = std::max(1u, (swapChainExtent.width / 2) >> i);
+        uint32_t levelHeight = std::max(1u, (swapChainExtent.height / 2) >> i);
+
+        vkCmdDispatch(commandBuffer, getGroupCount(levelWidth, depthreduceCS.localSizeX), getGroupCount(levelHeight, depthreduceCS.localSizeY), 1);
+
+        VkImageMemoryBarrier reduceBarrier = imageBarrier(depthPyramid.image, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL);
+
+        vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &reduceBarrier);
+    }
+    VkImageMemoryBarrier depthWriteBarrier = imageBarrier(depthTarget.image, VK_ACCESS_SHADER_READ_BIT, VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_READ_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT,
+        VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, VK_IMAGE_ASPECT_DEPTH_BIT);
+
+    vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT, VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &depthWriteBarrier);
+
+    VkRenderPassBeginInfo renderPassLateInfo{};
+    renderPassLateInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
+    renderPassLateInfo.renderPass = renderPassLate;
+    renderPassLateInfo.framebuffer = targetFB;//swapChainFramebuffers[imageIndex];
+    renderPassLateInfo.renderArea.offset = { 0, 0 };
+    renderPassLateInfo.renderArea.extent = swapChainExtent;
+
+    vkCmdBeginRenderPass(commandBuffer, &renderPassLateInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+    vkCmdEndRenderPass(commandBuffer);
+
     VkImageMemoryBarrier copyBarriers[] =
     {
         imageBarrier(colorTarget.image, VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL),
@@ -136,14 +178,34 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     };
     vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, sizeof(copyBarriers) / sizeof(copyBarriers[0]), copyBarriers);
 
-    VkImageCopy copyRegion = {};
-    copyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    copyRegion.srcSubresource.layerCount = 1;
-    copyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    copyRegion.dstSubresource.layerCount = 1;
-    copyRegion.extent = { swapChainExtent.width, swapChainExtent.height, 1 };
+    if (debugPyramid)
+    {
+        uint32_t debugLevel = 0;
 
-    vkCmdCopyImage(commandBuffer, colorTarget.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+        VkImageBlit blitRegion = {};
+        blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blitRegion.srcSubresource.mipLevel = debugLevel;
+        blitRegion.srcSubresource.layerCount = 1;
+        blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        blitRegion.dstSubresource.layerCount = 1;
+        blitRegion.srcOffsets[0] = { 0, 0, 0 };
+        blitRegion.srcOffsets[1] = { (int32_t)std::max(1u, (swapChainExtent.width / 2) >> debugLevel), (int32_t)std::max(1u, (swapChainExtent.height / 2) >> debugLevel), 1 };
+        blitRegion.dstOffsets[0] = { 0, 0, 0 };
+        blitRegion.dstOffsets[1] = { (int32_t)swapChainExtent.width, (int32_t)swapChainExtent.height, 1 };
+
+        vkCmdBlitImage(commandBuffer, depthPyramid.image, VK_IMAGE_LAYOUT_GENERAL, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blitRegion, VK_FILTER_NEAREST);
+    }
+    else
+    {
+        VkImageCopy copyRegion = {};
+        copyRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.srcSubresource.layerCount = 1;
+        copyRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+        copyRegion.dstSubresource.layerCount = 1;
+        copyRegion.extent = { swapChainExtent.width, swapChainExtent.height, 1 };
+
+        vkCmdCopyImage(commandBuffer, colorTarget.image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, swapChainImages[imageIndex], VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &copyRegion);
+    }
 
     VkImageMemoryBarrier presentBarrier = imageBarrier(swapChainImages[imageIndex], VK_ACCESS_TRANSFER_WRITE_BIT, 0, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_PRESENT_SRC_KHR);
     vkCmdPipelineBarrier(commandBuffer, VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_DEPENDENCY_BY_REGION_BIT, 0, 0, 0, 0, 1, &presentBarrier);
@@ -182,13 +244,32 @@ void renderApplication::drawFrame() {
             vkDestroyFramebuffer(device, targetFB, 0);
         }
 
+        if (depthPyramid.image)
+        {
+            for (uint32_t i = 0; i < depthPyramidLevels; ++i)
+            {
+                vkDestroyImageView(device, depthPyramidMips[i], 0);
+            }
+            destroyImage(depthPyramid, device);
+        }
+
         VkPhysicalDeviceMemoryProperties memProperties;
         vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
 
-        createImage(colorTarget, device, memProperties, swapChainExtent.width, swapChainExtent.height, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
-        createImage(depthTarget, device, memProperties, swapChainExtent.width, swapChainExtent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+        createImage(colorTarget, device, memProperties, swapChainExtent.width, swapChainExtent.height, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+        createImage(depthTarget, device, memProperties, swapChainExtent.width, swapChainExtent.height, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
         targetFB = createFramebuffer(device, renderPass, colorTarget.imageView, depthTarget.imageView, swapChainExtent.width, swapChainExtent.height);
+
+        depthPyramidLevels = getImageMipLevels(swapChainExtent.width / 2, swapChainExtent.height / 2);
+
+        createImage(depthPyramid, device, memProperties, swapChainExtent.width / 2, swapChainExtent.height / 2, depthPyramidLevels, VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+
+        for (uint32_t i = 0; i < depthPyramidLevels; ++i)
+        {
+            depthPyramidMips[i] = createImageView(device, depthPyramid.image, VK_FORMAT_R32_SFLOAT, i, 1);
+            assert(depthPyramidMips[i]);
+        }
         return;
     }
     else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
@@ -254,13 +335,32 @@ void renderApplication::drawFrame() {
             vkDestroyFramebuffer(device, targetFB, 0);
         }
 
+        if (depthPyramid.image)
+        {
+            for (uint32_t i = 0; i < depthPyramidLevels; ++i)
+            {
+                vkDestroyImageView(device, depthPyramidMips[i], 0);
+            }
+            destroyImage(depthPyramid, device);
+        }
+
         VkPhysicalDeviceMemoryProperties memProperties;
         vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
 
-        createImage(colorTarget, device, memProperties, swapChainExtent.width, swapChainExtent.height, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
-        createImage(depthTarget, device, memProperties, swapChainExtent.width, swapChainExtent.height, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT);
+        createImage(colorTarget, device, memProperties, swapChainExtent.width, swapChainExtent.height, 1, VK_FORMAT_B8G8R8A8_UNORM, VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+        createImage(depthTarget, device, memProperties, swapChainExtent.width, swapChainExtent.height, 1, VK_FORMAT_D32_SFLOAT, VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
 
         targetFB = createFramebuffer(device, renderPass, colorTarget.imageView, depthTarget.imageView, swapChainExtent.width, swapChainExtent.height);
+
+        depthPyramidLevels = getImageMipLevels(swapChainExtent.width / 2, swapChainExtent.height / 2);
+
+        createImage(depthPyramid, device, memProperties, swapChainExtent.width / 2, swapChainExtent.height / 2, depthPyramidLevels, VK_FORMAT_R32_SFLOAT, VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+
+        for (uint32_t i = 0; i < depthPyramidLevels; ++i)
+        {
+            depthPyramidMips[i] = createImageView(device, depthPyramid.image, VK_FORMAT_R32_SFLOAT, i, 1);
+            assert(depthPyramidMips[i]);
+        }
         return;
     }
     else if (result != VK_SUCCESS) {

@@ -30,6 +30,24 @@ static VkShaderStageFlagBits getShaderStage(SpvExecutionModel executionModel)
     }
 }
 
+static VkDescriptorType getDescriptorType(SpvOp op)
+{
+    switch (op)
+    {
+    case SpvOpTypeStruct:
+        return VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    case SpvOpTypeImage:
+        return VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    case SpvOpTypeSampler:
+        return VK_DESCRIPTOR_TYPE_SAMPLER;
+    case SpvOpTypeSampledImage:
+        return VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    default:
+        assert(!"Unknown resource type");
+        return VkDescriptorType(0);
+    }
+}
+
 static void parseShader(Shader& shader, const uint32_t* code, uint32_t codeSize)
 {
     if (code[0] != SpvMagicNumber)
@@ -100,6 +118,31 @@ static void parseShader(Shader& shader, const uint32_t* code, uint32_t codeSize)
             }
 
         } break;
+        case SpvOpTypeStruct:
+        case SpvOpTypeImage:
+        case SpvOpTypeSampler:
+        case SpvOpTypeSampledImage:
+        {
+            assert(wordCount >= 2);
+
+            uint32_t id = insn[1];
+            assert(id < idBound);
+
+            assert(ids[id].opcode == 0);
+            ids[id].opcode = opcode;
+        } break;
+        case SpvOpTypePointer:
+        {
+            assert(wordCount == 4);
+
+            uint32_t id = insn[1];
+            assert(id < idBound);
+
+            assert(ids[id].opcode == 0);
+            ids[id].opcode = opcode;
+            ids[id].typeId = insn[3];
+            ids[id].storageClass = insn[2];
+        } break;
         case SpvOpConstant:
         {
             assert(wordCount >= 4); // we currently only correctly handle 32-bit integer constants
@@ -135,13 +178,19 @@ static void parseShader(Shader& shader, const uint32_t* code, uint32_t codeSize)
 
     for (auto& id : ids)
     {
-        if (id.opcode == SpvOpVariable && id.storageClass == SpvStorageClassStorageBuffer)
+        if (id.opcode == SpvOpVariable && (id.storageClass == SpvStorageClassUniform || id.storageClass == SpvStorageClassUniformConstant || id.storageClass == SpvStorageClassStorageBuffer))
         {
             assert(id.set == 0);
             assert(id.binding < 32);
-            assert((shader.storageBufferMask & (1 << id.binding)) == 0);
+            assert(ids[id.typeId].opcode == SpvOpTypePointer);
 
-            shader.storageBufferMask |= 1 << id.binding;
+            uint32_t typeKind = ids[ids[id.typeId].typeId].opcode;
+            VkDescriptorType resourceType = getDescriptorType(SpvOp(typeKind));
+
+            assert((shader.resourceMask & (1 << id.binding)) == 0 || shader.resourceTypes[id.binding] == resourceType);
+
+            shader.resourceTypes[id.binding] = resourceType;
+            shader.resourceMask |= 1 << id.binding;
         }
 
         if (id.opcode == SpvOpVariable && id.storageClass == SpvStorageClassPushConstant)
@@ -375,37 +424,54 @@ void renderApplication::destroyProgram(const Program& program)
     vkDestroyPipelineLayout(device, program.layout, nullptr);
 }
 
+static uint32_t gatherResources(Shaders shaders, VkDescriptorType(&resourceTypes)[32])
+{
+    uint32_t resourceMask = 0;
+
+    for (const Shader* shader : shaders)
+    {
+        for (uint32_t i = 0; i < 32; ++i)
+        {
+            if (shader->resourceMask & (1 << i))
+            {
+                if (resourceMask & (1 << i))
+                {
+                    assert(resourceTypes[i] == shader->resourceTypes[i]);
+                }
+                else
+                {
+                    resourceTypes[i] = shader->resourceTypes[i];
+                    resourceMask |= 1 << i;
+                }
+            }
+        }
+    }
+
+    return resourceMask;
+}
+
 void renderApplication::createSetLayout(Shaders shaders, VkDescriptorSetLayout& outLayout)
 {
     std::vector<VkDescriptorSetLayoutBinding> setBindings;
 
-    uint32_t storageBufferMask = 0;
-    for (const Shader* shader : shaders)
-    {
-        storageBufferMask |= shader->storageBufferMask;
-    }
+    VkDescriptorType resourceTypes[32] = {};
+    uint32_t resourceMask = gatherResources(shaders, resourceTypes);
 
     for (uint32_t i = 0; i < 32; ++i)
-    {
-        if (storageBufferMask & (1 << i))
+        if (resourceMask & (1 << i))
         {
             VkDescriptorSetLayoutBinding binding = {};
             binding.binding = i;
-            binding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            binding.descriptorType = resourceTypes[i];
             binding.descriptorCount = 1;
 
             binding.stageFlags = 0;
             for (const Shader* shader : shaders)
-            {
-                if (shader->storageBufferMask & (1 << i))
-                {
+                if (shader->resourceMask & (1 << i))
                     binding.stageFlags |= shader->stage;
-                }
-            }
 
             setBindings.push_back(binding);
         }
-    }
 
     VkDescriptorSetLayoutCreateInfo setCreateInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO };
     setCreateInfo.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_PUSH_DESCRIPTOR_BIT_KHR;
@@ -424,27 +490,22 @@ void renderApplication::createUpdateTemplate(Shaders shaders, VkDescriptorUpdate
 {
     std::vector<VkDescriptorUpdateTemplateEntry> entries;
 
-    uint32_t storageBufferMask = 0;
-    for (const Shader* shader : shaders)
-    {
-        storageBufferMask |= shader->storageBufferMask;
-    }
+    VkDescriptorType resourceTypes[32] = {};
+    uint32_t resourceMask = gatherResources(shaders, resourceTypes);
 
     for (uint32_t i = 0; i < 32; ++i)
-    {
-        if (storageBufferMask & (1 << i))
+        if (resourceMask & (1 << i))
         {
             VkDescriptorUpdateTemplateEntry entry = {};
             entry.dstBinding = i;
             entry.dstArrayElement = 0;
             entry.descriptorCount = 1;
-            entry.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+            entry.descriptorType = resourceTypes[i];
             entry.offset = sizeof(DescriptorInfo) * i;
             entry.stride = sizeof(DescriptorInfo);
 
             entries.push_back(entry);
         }
-    }
 
     VkDescriptorUpdateTemplateCreateInfo createInfo = { VK_STRUCTURE_TYPE_DESCRIPTOR_UPDATE_TEMPLATE_CREATE_INFO };
 
@@ -484,6 +545,12 @@ void renderApplication::createGraphicsPipeline() {
         throw std::runtime_error("failed to create comp shader");
     }
 
+    std::vector<char> depthreduceShaderCode = readFile("..\\compiledShader\\depthreduce.comp.spv");
+    if (!createShader(depthreduceCS, depthreduceShaderCode))
+    {
+        throw std::runtime_error("failed to create comp shader");
+    }
+
     auto vertShaderCode = readFile("..\\compiledShader\\simple.vert.spv");
 
     auto fragShaderCode = readFile("..\\compiledShader\\simple.frag.spv");
@@ -507,6 +574,9 @@ void renderApplication::createGraphicsPipeline() {
 
     createGenericProgram(VK_PIPELINE_BIND_POINT_COMPUTE, { &drawcullCS }, sizeof(DrawCullData), drawcmdProgram);
     createComputePipeline(pipelineCache, drawcullCS, drawcmdProgram.layout, drawcmdPipeline);
+
+    createGenericProgram(VK_PIPELINE_BIND_POINT_COMPUTE, { &depthreduceCS }, 0, depthreduceProgram);
+    createComputePipeline(pipelineCache, depthreduceCS, depthreduceProgram.layout, depthreducePipeline);
 
     createGenericProgram(VK_PIPELINE_BIND_POINT_GRAPHICS, { &vertShader, &fragShader }, sizeof(Globals), graphicsProgram);
     createGenericGraphicsPipeline({ &vertShader, &fragShader }, pipelineCache, graphicsProgram.layout, graphicsPipeline);

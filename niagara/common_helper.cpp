@@ -113,7 +113,7 @@ VkFramebuffer createFramebuffer(VkDevice device, VkRenderPass renderPass, VkImag
 	return frameBuffer; 
 }
 
-VkImageView createImageView(VkDevice device, VkImage image, VkFormat format)
+VkImageView createImageView(VkDevice device, VkImage image, VkFormat format, uint32_t mipLevel, uint32_t levelCount)
 {
 	VkImageAspectFlags aspectMask = (format == VK_FORMAT_D32_SFLOAT) ? VK_IMAGE_ASPECT_DEPTH_BIT : VK_IMAGE_ASPECT_COLOR_BIT;
 
@@ -127,8 +127,8 @@ VkImageView createImageView(VkDevice device, VkImage image, VkFormat format)
 	viewCreateInfo.components.b = VK_COMPONENT_SWIZZLE_IDENTITY;
 	viewCreateInfo.components.a = VK_COMPONENT_SWIZZLE_IDENTITY;
 	viewCreateInfo.subresourceRange.aspectMask = aspectMask;
-	viewCreateInfo.subresourceRange.baseMipLevel = 0;
-	viewCreateInfo.subresourceRange.levelCount = 1;
+	viewCreateInfo.subresourceRange.baseMipLevel = mipLevel;
+	viewCreateInfo.subresourceRange.levelCount = levelCount;
 	viewCreateInfo.subresourceRange.baseArrayLayer = 0;
 	viewCreateInfo.subresourceRange.layerCount = 1;
 
@@ -139,13 +139,13 @@ VkImageView createImageView(VkDevice device, VkImage image, VkFormat format)
 	return imageView;
 }
 
-void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProperties, uint32_t width, uint32_t height, VkFormat format, VkImageUsageFlags usage)
+void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryProperties& memoryProperties, uint32_t width, uint32_t height, uint32_t mipLevels, VkFormat format, VkImageUsageFlags usage)
 {
 	VkImageCreateInfo createInfo = { VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO };
 	createInfo.imageType = VK_IMAGE_TYPE_2D;
 	createInfo.format = format;
 	createInfo.extent = { width, height, 1 };
-	createInfo.mipLevels = 1;
+	createInfo.mipLevels = mipLevels;
 	createInfo.arrayLayers = 1;
 	createInfo.samples = VK_SAMPLE_COUNT_1_BIT;
 	createInfo.tiling = VK_IMAGE_TILING_OPTIMAL;
@@ -175,7 +175,7 @@ void createImage(Image& result, VkDevice device, const VkPhysicalDeviceMemoryPro
 	vkBindImageMemory(device, image, bufferMemory, 0);
 
 	result.image = image;
-	result.imageView = createImageView(device, image, format);
+	result.imageView = createImageView(device, image, format, 0, mipLevels);
 	result.memory = bufferMemory;
 }
 
@@ -241,4 +241,18 @@ VkQueryPool createGenericQueryPool(VkDevice device, uint32_t queryCount, VkQuery
 		throw std::runtime_error("can't create query pool");
 	}
 	return queryPool;
+}
+
+uint32_t getImageMipLevels(uint32_t width, uint32_t height)
+{
+	uint32_t result = 1;
+
+	while (width > 1 || height > 1)
+	{
+		result++;
+		width /= 2;
+		height /= 2;
+	}
+
+	return result;
 }

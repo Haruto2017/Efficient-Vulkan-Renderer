@@ -53,9 +53,13 @@ private:
 
     Image colorTarget;
     Image depthTarget;
+    Image depthPyramid;
+    uint32_t depthPyramidLevels;
+    VkImageView depthPyramidMips[16];
     VkFramebuffer targetFB;
 
     VkRenderPass renderPass;
+    VkRenderPass renderPassLate;
 
     VkPipelineCache pipelineCache = 0;
 
@@ -68,7 +72,11 @@ private:
     VkPipeline drawcmdPipeline;
     Program drawcmdProgram;
 
+    VkPipeline depthreducePipeline;
+    Program depthreduceProgram;
+
     Shader drawcullCS;
+    Shader depthreduceCS;
 
     VkCommandPool commandPool;
     std::vector<VkCommandBuffer> commandBuffers;
@@ -111,6 +119,8 @@ private:
     bool cullEnabled = false;
     bool lodEnabled = false;
 
+    bool debugPyramid = false;
+
     float drawDistance;
 
     void initWindow();
@@ -145,6 +155,8 @@ private:
 
     void createRenderPass();
 
+    void createRenderPassLate();
+    
     void createGenericGraphicsPipelineLayout(Shaders shaders, VkShaderStageFlags pushConstantStages, VkPipelineLayout& outPipelineLayout, VkDescriptorSetLayout inSetLayout, size_t pushConstantSize);
 
     void createGenericGraphicsPipeline(Shaders shaders, VkPipelineCache pipelineCache, VkPipelineLayout inPipelineLayout, VkPipeline& outPipeline);
