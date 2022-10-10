@@ -105,6 +105,11 @@ struct Id
     uint32_t constant;
 };
 
+struct alignas(16) DepthReduceData
+{
+    glm::vec2 imageSize;
+};
+
 inline uint32_t getGroupCount(uint32_t threadCount, uint32_t localSize)
 {
     return (threadCount + localSize - 1) / localSize;
@@ -135,5 +140,7 @@ glm::vec4 normalizePlane(glm::vec4 p);
 VkQueryPool createGenericQueryPool(VkDevice device, uint32_t queryCount, VkQueryType queryType);
 
 uint32_t getImageMipLevels(uint32_t width, uint32_t height);
+
+VkSampler createSampler(VkDevice device);
 
 #endif

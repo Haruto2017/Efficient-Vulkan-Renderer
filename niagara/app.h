@@ -120,8 +120,11 @@ private:
     bool lodEnabled = false;
 
     bool debugPyramid = false;
+    uint32_t debugPyramidLevel = 0;
 
     float drawDistance;
+
+    VkSampler depthSampler;
 
     void initWindow();
 

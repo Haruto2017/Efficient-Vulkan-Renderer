@@ -575,8 +575,10 @@ void renderApplication::createGraphicsPipeline() {
     createGenericProgram(VK_PIPELINE_BIND_POINT_COMPUTE, { &drawcullCS }, sizeof(DrawCullData), drawcmdProgram);
     createComputePipeline(pipelineCache, drawcullCS, drawcmdProgram.layout, drawcmdPipeline);
 
-    createGenericProgram(VK_PIPELINE_BIND_POINT_COMPUTE, { &depthreduceCS }, 0, depthreduceProgram);
+    createGenericProgram(VK_PIPELINE_BIND_POINT_COMPUTE, { &depthreduceCS }, sizeof(DepthReduceData), depthreduceProgram);
     createComputePipeline(pipelineCache, depthreduceCS, depthreduceProgram.layout, depthreducePipeline);
+
+    depthSampler = createSampler(device);
 
     createGenericProgram(VK_PIPELINE_BIND_POINT_GRAPHICS, { &vertShader, &fragShader }, sizeof(Globals), graphicsProgram);
     createGenericGraphicsPipeline({ &vertShader, &fragShader }, pipelineCache, graphicsProgram.layout, graphicsPipeline);

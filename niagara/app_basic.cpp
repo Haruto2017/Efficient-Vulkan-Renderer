@@ -13,7 +13,7 @@ void renderApplication::createMeshes()
 
     meshes[0].generateRenderData(device, commandBuffers[0], graphicsQueue, memProperties);
 
-    drawCount = 100000;
+    drawCount = 1000000;
     float sceneRadius = 300.f;
     drawDistance = 200.f;
 

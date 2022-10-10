@@ -5,6 +5,7 @@ bool querySwitch = false;
 bool cullSwitch = true;
 bool lodSwitch = true;
 bool debugPyramidSwitch = false;
+uint32_t debugPyramidLevelInput = 0;
 
 void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
     auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
@@ -36,6 +37,10 @@ void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mods
         if (key == GLFW_KEY_P)
         {
             debugPyramidSwitch = !debugPyramidSwitch;
+        }
+        if (key >= GLFW_KEY_0 && key <= GLFW_KEY_9)
+        {
+            debugPyramidLevelInput = key - GLFW_KEY_0;
         }
     }
 }
@@ -89,6 +94,7 @@ void renderApplication::mainLoop() {
         cullEnabled = cullSwitch;
         lodEnabled = lodSwitch;
         debugPyramid = debugPyramidSwitch;
+        debugPyramidLevel = debugPyramidLevelInput;
         double frameCPUBegin = glfwGetTime() * 1000;
         glfwPollEvents();
         drawFrame();
@@ -116,6 +122,8 @@ void renderApplication::cleanup() {
 
     destroyShader(drawcullCS);
     destroyShader(depthreduceCS);
+
+    vkDestroySampler(device, depthSampler, nullptr);
 
     destroyBuffer(db, device);
     destroyBuffer(dcb, device);

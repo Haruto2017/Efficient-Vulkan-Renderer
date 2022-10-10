@@ -17,7 +17,7 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
         vkCmdBeginQuery(commandBuffer, pipeStatsQueryPool, 0, 0);
     }
 
-    glm::mat4 projection = MakeInfReversedZProjRH(glm::radians(70.f), float(swapChainExtent.width) / float(swapChainExtent.height), 0.01f);
+    glm::mat4 projection = MakeInfReversedZProjRH(glm::radians(70.f), float(swapChainExtent.width) / float(swapChainExtent.height), 1.f);
 
     {
         if (queryEnabled)
@@ -141,7 +141,7 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
     // build depth pyramid
     for (uint32_t i = 0; i < depthPyramidLevels; ++i)
     {
-        DescriptorInfo sourceDepth = DescriptorInfo{ depthPyramidMips[i], VK_IMAGE_LAYOUT_GENERAL };// (i == 0) ? DescriptorInfo{ depthTarget.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL } : DescriptorInfo{ depthPyramidMips[i - 1], VK_IMAGE_LAYOUT_GENERAL };
+        DescriptorInfo sourceDepth = (i == 0) ? DescriptorInfo{ depthSampler, depthTarget.imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL } : DescriptorInfo{ depthSampler, depthPyramidMips[i - 1], VK_IMAGE_LAYOUT_GENERAL };
         DescriptorInfo descriptors[] = {{ depthPyramidMips[i], VK_IMAGE_LAYOUT_GENERAL }, sourceDepth };
 
         vkCmdPushDescriptorSetWithTemplateKHR(commandBuffer, depthreduceProgram.updateTemplate, depthreduceProgram.layout, 0, descriptors);
@@ -149,6 +149,8 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
         uint32_t levelWidth = std::max(1u, (swapChainExtent.width / 2) >> i);
         uint32_t levelHeight = std::max(1u, (swapChainExtent.height / 2) >> i);
 
+        DepthReduceData depthReduceData = { glm::vec2(levelWidth, levelHeight) };
+        vkCmdPushConstants(commandBuffer, depthreduceProgram.layout, depthreduceProgram.pushConstantStages, 0, sizeof(DepthReduceData), &depthReduceData);
         vkCmdDispatch(commandBuffer, getGroupCount(levelWidth, depthreduceCS.localSizeX), getGroupCount(levelHeight, depthreduceCS.localSizeY), 1);
 
         VkImageMemoryBarrier reduceBarrier = imageBarrier(depthPyramid.image, VK_ACCESS_SHADER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_GENERAL, VK_IMAGE_LAYOUT_GENERAL);
@@ -180,16 +182,14 @@ void renderApplication::recordCommandBuffer(VkCommandBuffer commandBuffer, uint3
 
     if (debugPyramid)
     {
-        uint32_t debugLevel = 0;
-
         VkImageBlit blitRegion = {};
         blitRegion.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-        blitRegion.srcSubresource.mipLevel = debugLevel;
+        blitRegion.srcSubresource.mipLevel = debugPyramidLevel;
         blitRegion.srcSubresource.layerCount = 1;
         blitRegion.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
         blitRegion.dstSubresource.layerCount = 1;
         blitRegion.srcOffsets[0] = { 0, 0, 0 };
-        blitRegion.srcOffsets[1] = { (int32_t)std::max(1u, (swapChainExtent.width / 2) >> debugLevel), (int32_t)std::max(1u, (swapChainExtent.height / 2) >> debugLevel), 1 };
+        blitRegion.srcOffsets[1] = { (int32_t)std::max(1u, (swapChainExtent.width / 2) >> debugPyramidLevel), (int32_t)std::max(1u, (swapChainExtent.height / 2) >> debugPyramidLevel), 1 };
         blitRegion.dstOffsets[0] = { 0, 0, 0 };
         blitRegion.dstOffsets[1] = { (int32_t)swapChainExtent.width, (int32_t)swapChainExtent.height, 1 };
 
